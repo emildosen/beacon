@@ -1,0 +1,44 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+.env
+local.settings.json
+clients.json
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+.Spotlight-V100
+.Trashes
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# CC
+.claude/
+.claude_workspace/
+.claude_session/
+.claude_tmp/
+*.claude
+*.claude.bak
+.claude.json
+.claude.yaml
+CLAUDE.md
+
+# Reference
+_reference/

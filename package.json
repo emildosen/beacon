@@ -1,0 +1,26 @@
+{
+  "name": "beacon",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/functions/pollAuditLogs.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && func start",
+    "watch": "tsc -w"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "M365 security alerting tool for MSPs",
+  "dependencies": {
+    "@azure/functions": "^4.10.0",
+    "@azure/identity": "^4.13.0",
+    "@azure/monitor-ingestion": "^1.2.0",
+    "@microsoft/microsoft-graph-client": "^3.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "azure-functions-core-tools": "^4.6.0",
+    "typescript": "^5.9.3"
+  }
+}
