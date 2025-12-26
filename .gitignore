@@ -14,6 +14,7 @@ dist-ssr
 .env
 local.settings.json
 clients.json
+rules.json
 
 # Editor directories and files
 .vscode/*
