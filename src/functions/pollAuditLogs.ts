@@ -3,7 +3,7 @@ import { getAuditEvents } from '../lib/managementApi.js';
 import { getSignIns, getSecurityAlerts } from '../lib/graph.js';
 import { evaluateRules, getEventId, getEventSummary } from '../lib/rules.js';
 import { writeAlerts } from '../lib/logAnalytics.js';
-import { getClients } from '../lib/config.js';
+import { getClients, updateClientLastPoll } from '../lib/config.js';
 import { Alert, AuditEvent, SignInLog, SecurityAlert, RuleSource, Client } from '../lib/types.js';
 
 app.timer('pollAuditLogs', {
@@ -15,9 +15,8 @@ app.timer('pollAuditLogs', {
       context.log('Timer is past due - execution delayed');
     }
 
-    // Calculate time window
     const now = new Date();
-    const since = new Date(now.getTime() - 36 * 60 * 60 * 1000);
+    const defaultLookback = 12 * 60 * 60 * 1000; // 12 hours for first run
 
     // Load clients from config
     const clients = getClients();
@@ -28,16 +27,21 @@ app.timer('pollAuditLogs', {
 
     // Process each client sequentially to avoid rate limiting
     for (const client of clients) {
-      context.log(`\n--- Processing client: ${client.name} (${client.tenantId}) ---`);
+      // Use lastPoll if available, otherwise default lookback
+      const since = client.lastPoll ? new Date(client.lastPoll) : new Date(now.getTime() - defaultLookback);
+      context.log(`\n--- Processing client: ${client.name} (${client.tenantId}) since ${since.toISOString()} ---`);
 
       try {
         const { alerts, eventCount } = await processClient(client, since, context);
         allAlerts.push(...alerts);
         totalEvents += eventCount;
         context.log(`Client ${client.name}: ${eventCount} events, ${alerts.length} alerts`);
+
+        // Update lastPoll on success
+        updateClientLastPoll(client.tenantId, now);
       } catch (error) {
         context.error(`Failed to process client ${client.name}:`, error);
-        // Continue with next client
+        // Don't update lastPoll on failure - will retry same window next run
       }
     }
 

@@ -151,4 +151,5 @@ export interface GraphPagedResponse<T> {
 export interface Client {
   name: string;
   tenantId: string;
+  lastPoll?: string; // ISO timestamp of last successful poll
 }

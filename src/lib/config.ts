@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { Rule, Client } from './types.js';
@@ -7,6 +7,7 @@ import { Rule, Client } from './types.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..', '..');
+const clientsPath = join(projectRoot, 'clients.json');
 
 let cachedClients: Client[] | null = null;
 let cachedRules: Rule[] | null = null;
@@ -16,7 +17,6 @@ let cachedRules: Rule[] | null = null;
  */
 export function getClients(): Client[] {
   if (cachedClients === null) {
-    const clientsPath = join(projectRoot, 'clients.json');
     try {
       const content = readFileSync(clientsPath, 'utf-8');
       cachedClients = JSON.parse(content) as Client[];
@@ -26,6 +26,18 @@ export function getClients(): Client[] {
     }
   }
   return cachedClients;
+}
+
+/**
+ * Updates a client's lastPoll timestamp and writes back to clients.json
+ */
+export function updateClientLastPoll(tenantId: string, timestamp: Date): void {
+  const clients = getClients();
+  const client = clients.find((c) => c.tenantId === tenantId);
+  if (client) {
+    client.lastPoll = timestamp.toISOString();
+    writeFileSync(clientsPath, JSON.stringify(clients, null, 2));
+  }
 }
 
 /**
