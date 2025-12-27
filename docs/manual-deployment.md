@@ -1,10 +1,9 @@
-# Getting Started
+# Manual Deployment
 
-## Prerequisites
+### Prerequisites
 
-- Azure subscription with Log Analytics workspace
+- Azure subscription
 - Multi-tenant Entra ID app registration with admin consent
-- Node.js 20+
 
 ## Step 1: App Registration
 

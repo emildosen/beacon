@@ -11,8 +11,8 @@ hero:
       text: Introduction
       link: /overview
     - theme: alt
-      text: Setup Guide
-      link: /getting-started
+      text: Azure Deployment
+      link: /azure-deployment
     - theme: alt
       text: View Rules
       link: /rules

@@ -19,7 +19,7 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Introduction', link: '/overview' },
-      { text: 'Setup', link: '/getting-started' },
+      { text: 'Setup', link: '/azure-deployment' },
       { text: 'Rules', link: '/rules' }
     ],
 
@@ -33,7 +33,8 @@ export default defineConfig({
       {
         text: 'Setup',
         items: [
-          { text: 'Getting Started', link: '/getting-started' }
+          { text: 'Azure Deployment', link: '/azure-deployment' },
+          { text: 'Manual Deployment', link: '/manual-deployment' }
         ]
       },
       {
