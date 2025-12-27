@@ -42,6 +42,7 @@ interface CategoryRules {
 
 const displayNameOverrides: Record<string, string> = {
   'ediscovery': 'eDiscovery',
+  'sharepoint': 'SharePoint',
 }
 
 function toDisplayName(folderName: string): string {

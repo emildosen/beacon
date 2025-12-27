@@ -58,13 +58,13 @@ function generateRowKey(ruleName: string, user: string): string {
 }
 
 /**
- * Check if an alert with the same (tenantId, ruleName, user) exists within 5-minute window
+ * Check if an alert with the same (tenantId, ruleName, user) was processed within 5-minute window
+ * Uses TimeProcessed (when we process the event) rather than TimeGenerated (when the event occurred)
  */
 export async function isDuplicate(
   tenantId: string,
   ruleName: string,
-  user: string,
-  eventTime: string
+  user: string
 ): Promise<boolean> {
   try {
     await ensureTablesExist();
@@ -72,10 +72,10 @@ export async function isDuplicate(
 
     const entity = await dedupClient!.getEntity<{ timestamp: string }>(tenantId, rowKey);
     const storedTime = new Date(entity.timestamp).getTime();
-    const eventTimeMs = new Date(eventTime).getTime();
+    const now = Date.now();
 
-    // Check if within 5-minute window
-    return Math.abs(eventTimeMs - storedTime) < DEDUP_WINDOW_MS;
+    // Check if within 5-minute window based on processing time
+    return now - storedTime < DEDUP_WINDOW_MS;
   } catch (e: unknown) {
     // Entity not found means not a duplicate, other errors are non-fatal
     if ((e as { statusCode?: number }).statusCode === 404) return false;
@@ -85,12 +85,12 @@ export async function isDuplicate(
 
 /**
  * Record an alert occurrence for dedup tracking
+ * Stores TimeProcessed (current time) for consistent dedup regardless of event age
  */
 export async function recordAlert(
   tenantId: string,
   ruleName: string,
-  user: string,
-  eventTime: string
+  user: string
 ): Promise<void> {
   try {
     await ensureTablesExist();
@@ -100,7 +100,7 @@ export async function recordAlert(
       {
         partitionKey: tenantId,
         rowKey,
-        timestamp: eventTime,
+        timestamp: new Date().toISOString(),
         ruleName,
         user,
       },

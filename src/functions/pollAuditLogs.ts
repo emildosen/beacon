@@ -146,13 +146,12 @@ async function processAlert(
   context: InvocationContext
 ): Promise<Alert | null> {
   const user = getEventUser(event, source);
-  const eventTime = getEventTimestamp(event, source);
 
-  // Check 5-min dedup window
-  if (await isDuplicate(client.tenantId, rule.name, user, eventTime)) {
+  // Check 5-min dedup window (based on TimeProcessed, not TimeGenerated)
+  if (await isDuplicate(client.tenantId, rule.name, user)) {
     return null;
   }
-  await recordAlert(client.tenantId, rule.name, user, eventTime);
+  await recordAlert(client.tenantId, rule.name, user);
 
   // Create the alert (will be written to Log Analytics)
   const alert = createAlert(event, source, rule, client);

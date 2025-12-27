@@ -1,6 +1,0 @@
-- Federated authentication, support both authentication methods
-- State management, log last time tenant was checked and only fetch new logs after this time
-- Alerts (email, Teams webhook)
-- Log Analytics Workbook dashboard
-- Deployment automation, Bicep templates, setup script, and instructions
-- Client specific rules, like emergency access account use

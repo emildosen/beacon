@@ -1,7 +1,7 @@
 {
   "name": "Anonymous link created",
   "description": "Anonymous sharing link created - data exposure risk",
-  "severity": "High",
+  "severity": "Medium",
   "enabled": true,
   "source": "AuditLog",
   "mitre": {
