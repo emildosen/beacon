@@ -4,7 +4,11 @@ export default defineConfig({
   title: "Beacon",
   titleTemplate: ':title | Beacon - M365 Security Alerting',
   description: "Multi-tenant M365 security alerting for MSPs",
+  head: [
+    ['link', { rel: 'icon', href: '/favicon.png' }]
+  ],
   themeConfig: {
+    logo: '/beacon.png',
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Overview', link: '/overview' },

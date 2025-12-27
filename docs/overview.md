@@ -10,7 +10,7 @@ Beacon is an Azure Functions app that polls Microsoft 365 APIs for security even
 - Microsoft Graph API
 - Office 365 Management Activity API
 
-### Data Flow
+## Data Flow
 
 1. **Timer Trigger** - Azure Function runs every 5 minutes
 2. **Multi-Tenant Polling** - For each client in `clients.json`, fetches events from Microsoft APIs since last successful poll
