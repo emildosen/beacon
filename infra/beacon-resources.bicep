@@ -188,8 +188,9 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
     name: selectedSku.name
     tier: selectedSku.tier
   }
+  kind: 'linux'
   properties: {
-    reserved: false // Windows
+    reserved: true // Linux
   }
 }
 
@@ -197,7 +198,7 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
 resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
   name: functionAppName
   location: location
-  kind: 'functionapp'
+  kind: 'functionapp,linux'
   identity: {
     type: 'SystemAssigned'
   }
@@ -205,8 +206,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
     serverFarmId: appServicePlan.id
     siteConfig: {
       alwaysOn: appPlanSku != 'Y1'
-      netFrameworkVersion: 'v8.0'
-      nodeVersion: '~22'
+      linuxFxVersion: 'NODE|22-lts'
       cors: {
         allowedOrigins: [
           'https://portal.azure.com'
@@ -268,10 +268,6 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'AZURE_STORAGE_CONNECTION_STRING'
           value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
-        }
-        {
-          name: 'WEBSITE_NODE_DEFAULT_VERSION'
-          value: '~22'
         }
         {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
