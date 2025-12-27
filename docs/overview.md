@@ -2,54 +2,13 @@
 
 Beacon is an Azure Functions app that polls Microsoft 365 APIs for security events, evaluates them against configurable rules, and writes alerts to Azure Log Analytics. Designed for MSPs managing multiple Microsoft 365 tenants.
 
-## Architecture
+## Tech Stack
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           Client Tenants                                │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                   │
-│  │  Contoso     │  │  Fabrikam    │  │  Woodgrove   │  ...              │
-│  │  Tenant      │  │  Tenant      │  │  Tenant      │                   │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘                   │
-│         │                 │                 │                           │
-│         └─────────────────┬─────────────────┘                           │
-│                           │                                             │
-│                           ▼                                             │
-│  ┌───────────────────────────────────────────────────────────────────┐  │
-│  │                    Microsoft APIs                                 │  │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌────────────────────────────┐ │  │
-│  │  │ Graph API   │  │ Graph API   │  │ O365 Management API        │ │  │
-│  │  │ Sign-ins    │  │ Security    │  │ Audit Logs                 │ │  │
-│  │  │             │  │ Alerts      │  │                            │ │  │
-│  │  └─────────────┘  └─────────────┘  └────────────────────────────┘ │  │
-│  └───────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         MSP Azure Tenant                                │
-│                                                                         │
-│  ┌────────────────────────────────────────────────────────────────────┐ │
-│  │                    Azure Functions (Beacon)                        │ │
-│  │                                                                    │ │
-│  │  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────┐ │ │
-│  │  │ Poll Timer  │───▶│ Rule Engine │───▶│ Alert Dedup +           │ │ │
-│  │  │ (5 min)     │    │             │    │ Notification Throttle   │ │ │
-│  │  └─────────────┘    └─────────────┘    └───────────┬─────────────┘ │ │
-│  │                                                    │               │ │
-│  └────────────────────────────────────────────────────┼───────────────┘ │
-│                                                       │                 │
-│         ┌─────────────────────────────────────────────|                 │
-│         │                                             │                 │
-│         ▼                                             ▼                 │
-│  ┌─────────────────────┐                ┌───────────────────────────┐   │
-│  │ Azure Table Storage │                │  Log Analytics + Alerting │   │
-│  │ Storage             |                │                           │   │
-│  │ (Dedup State)       |                │  Beacon_Alerts_CL table   │   │
-│  └─────────────────────┘                └───────────────────────────┘   │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+- Azure Functions
+- Azure Log Analytics with Data Collection Rules
+- Azure Table Storage for state management
+- Microsoft Graph API
+- Office 365 Management Activity API
 
 ### Data Flow
 
@@ -96,14 +55,6 @@ Beacon uses a single multi-tenant Entra ID app registration in your home tenant.
 - **clients.json** - Array of tenant configs with name, tenantId, and lastPoll timestamp
 - **Sequential Processing** - Tenants processed one at a time to respect API rate limits
 - **Fault Isolation** - Failures in one tenant don't affect others; lastPoll not updated on failure
-
-## Tech Stack
-
-- Azure Functions
-- Azure Log Analytics with Data Collection Rules
-- Azure Table Storage for state management
-- Microsoft Graph API
-- Office 365 Management Activity API
 
 ## Getting Started
 
