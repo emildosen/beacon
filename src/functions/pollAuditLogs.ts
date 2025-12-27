@@ -4,7 +4,7 @@ import { getSignIns, getSecurityAlerts } from '../lib/graph.js';
 import { evaluateRules, getEventId, getEventSummary } from '../lib/rules.js';
 import { writeAlerts } from '../lib/logAnalytics.js';
 import { sendTeamsAlerts } from '../lib/teams.js';
-import { getClients, updateClientLastPoll } from '../lib/config.js';
+import { getClients, updateClientLastPoll, getRules } from '../lib/config.js';
 import { Alert, AuditEvent, SignInLog, SecurityAlert, RuleSource, Client, Rule } from '../lib/types.js';
 import {
   isDuplicate,
@@ -25,7 +25,10 @@ app.timer('pollAuditLogs', {
     const defaultLookback = 60 * 60 * 1000; // 1 hour for new tenants
     const maxLookback = 6 * 60 * 60 * 1000; // 6 hour max for stale tenants
 
+    // Preload rules and clients before processing
+    const rules = getRules(context);
     const clients = getClients();
+    context.log(`Processing ${clients.length} clients against ${rules.length} rules`);
 
     const allAlerts: Alert[] = [];
     let totalEvents = 0;
@@ -101,7 +104,7 @@ async function processClient(
   // Process audit events
   eventCount += auditEvents.length;
   for (const event of auditEvents) {
-    const matchedRule = evaluateRules(event, 'AuditLog', client.tenantId);
+    const matchedRule = evaluateRules(event, 'AuditLog', client.tenantId, context);
     if (matchedRule) {
       const alert = await processAlert(event, 'AuditLog', matchedRule, client, context);
       if (alert) alerts.push(alert);
@@ -111,7 +114,7 @@ async function processClient(
   // Process sign-ins
   eventCount += signIns.length;
   for (const event of signIns) {
-    const matchedRule = evaluateRules(event, 'SignIn', client.tenantId);
+    const matchedRule = evaluateRules(event, 'SignIn', client.tenantId, context);
     if (matchedRule) {
       const alert = await processAlert(event, 'SignIn', matchedRule, client, context);
       if (alert) alerts.push(alert);
@@ -121,7 +124,7 @@ async function processClient(
   // Process security alerts
   eventCount += securityAlerts.length;
   for (const event of securityAlerts) {
-    const matchedRule = evaluateRules(event, 'SecurityAlert', client.tenantId);
+    const matchedRule = evaluateRules(event, 'SecurityAlert', client.tenantId, context);
     if (matchedRule) {
       const alert = await processAlert(event, 'SecurityAlert', matchedRule, client, context);
       if (alert) alerts.push(alert);

@@ -1,6 +1,11 @@
 import { Rule, RuleCondition, RuleSource, RuleOperator, AuditEvent, SignInLog, SecurityAlert } from './types.js';
 import { getRules } from './config.js';
 
+type Logger = {
+  log: (...args: unknown[]) => void;
+  warn: (...args: unknown[]) => void;
+};
+
 /**
  * Safely traverses a nested object using dot notation path
  * Supports numeric indices for arrays (e.g., "TargetResources.0.UserPrincipalName")
@@ -128,9 +133,10 @@ function matchesException(
 export function evaluateRules(
   event: AuditEvent | SignInLog | SecurityAlert,
   source: RuleSource,
-  tenantId?: string
+  tenantId?: string,
+  logger?: Logger
 ): Rule | null {
-  const rules = getRules();
+  const rules = getRules(logger);
   const eventRecord = event as Record<string, unknown>;
 
   const applicableRules = rules.filter((rule) => {

@@ -79,11 +79,16 @@ function isValidRule(rule: unknown): rule is Omit<Rule, 'id'> {
   );
 }
 
+type Logger = {
+  log: (...args: unknown[]) => void;
+  warn: (...args: unknown[]) => void;
+};
+
 /**
  * Loads and caches rules from /rules directory
  * Each .json file is a single rule, ID derived from file path
  */
-export function getRules(): Rule[] {
+export function getRules(logger?: Logger): Rule[] {
   if (cachedRules === null) {
     cachedRules = [];
     const jsonFiles = findJsonFiles(rulesDir);
@@ -94,7 +99,7 @@ export function getRules(): Rule[] {
         const parsed = JSON.parse(content);
 
         if (!isValidRule(parsed)) {
-          console.warn(`Invalid rule file (missing required fields): ${filePath}`);
+          logger?.warn(`Invalid rule file (missing required fields): ${filePath}`);
           continue;
         }
 
@@ -108,11 +113,11 @@ export function getRules(): Rule[] {
         };
         cachedRules.push(rule);
       } catch (error) {
-        console.warn(`Failed to load rule file ${filePath}: ${error}`);
+        logger?.warn(`Failed to load rule file ${filePath}: ${error}`);
       }
     }
 
-    console.log(`Loaded ${cachedRules.length} rules from ${rulesDir}`);
+    logger?.log(`Loaded ${cachedRules.length} rules from ${rulesDir}`);
   }
   return cachedRules;
 }
