@@ -7,12 +7,19 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
+      { text: 'Overview', link: '/overview' },
       { text: 'Guide', link: '/getting-started' }
     ],
 
     sidebar: [
       {
-        text: 'Guide',
+        text: 'Home',
+        items: [
+          { text: 'Overview', link: '/overview' }
+        ]
+      },
+      {
+        text: 'Guides',
         items: [
           { text: 'Getting Started', link: '/getting-started' },
           { text: 'Rules', link: '/rules' }

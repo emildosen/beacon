@@ -10,6 +10,9 @@ hero:
       text: Get Started
       link: /getting-started
     - theme: alt
+      text: Overview
+      link: /overview
+    - theme: alt
       text: View Rules
       link: /rules
 

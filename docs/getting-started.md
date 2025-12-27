@@ -1,7 +1,5 @@
 # Getting Started
 
-Beacon is an Azure Functions app that polls Microsoft 365 APIs for security events and writes alerts to Azure Log Analytics.
-
 ## Prerequisites
 
 - Azure subscription with Log Analytics workspace
