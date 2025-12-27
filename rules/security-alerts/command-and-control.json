@@ -1,0 +1,21 @@
+{
+  "name": "Command and control",
+  "description": "Command and control activity detected",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "SecurityAlert",
+  "mitre": {
+    "tactic": "Command and Control",
+    "technique": "TA0011"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "category", "operator": "Contains", "value": "CommandAndControl" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Lateral movement",
+  "description": "Lateral movement detected",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "SecurityAlert",
+  "mitre": {
+    "tactic": "Lateral Movement",
+    "technique": "TA0008"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "category", "operator": "Contains", "value": "LateralMovement" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

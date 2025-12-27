@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { readFileSync, writeFileSync, readdirSync, existsSync } from 'fs';
+import { join, dirname, relative, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { Rule, Client, AlertsConfig } from './types.js';
 
@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..', '..');
 const clientsPath = join(projectRoot, 'clients.json');
+const rulesDir = join(projectRoot, 'rules');
 
 let cachedClients: Client[] | null = null;
 let cachedRules: Rule[] | null = null;
@@ -41,17 +42,77 @@ export function updateClientLastPoll(tenantId: string, timestamp: Date): void {
 }
 
 /**
- * Loads and caches rules from rules.json
+ * Recursively finds all .json files in a directory
+ */
+function findJsonFiles(dir: string): string[] {
+  const files: string[] = [];
+  if (!existsSync(dir)) {
+    return files;
+  }
+
+  const entries = readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...findJsonFiles(fullPath));
+    } else if (entry.isFile() && entry.name.endsWith('.json')) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
+/**
+ * Validates that a parsed rule has required fields
+ */
+function isValidRule(rule: unknown): rule is Omit<Rule, 'id'> {
+  if (typeof rule !== 'object' || rule === null) return false;
+  const r = rule as Record<string, unknown>;
+  return (
+    typeof r.name === 'string' &&
+    typeof r.description === 'string' &&
+    typeof r.severity === 'string' &&
+    typeof r.enabled === 'boolean' &&
+    typeof r.source === 'string' &&
+    typeof r.conditions === 'object' &&
+    r.conditions !== null
+  );
+}
+
+/**
+ * Loads and caches rules from /rules directory
+ * Each .json file is a single rule, ID derived from file path
  */
 export function getRules(): Rule[] {
   if (cachedRules === null) {
-    const rulesPath = join(projectRoot, 'rules.json');
-    try {
-      const content = readFileSync(rulesPath, 'utf-8');
-      cachedRules = JSON.parse(content) as Rule[];
-    } catch (error) {
-      throw new Error(`Failed to load rules.json: ${error}`);
+    cachedRules = [];
+    const jsonFiles = findJsonFiles(rulesDir);
+
+    for (const filePath of jsonFiles) {
+      try {
+        const content = readFileSync(filePath, 'utf-8');
+        const parsed = JSON.parse(content);
+
+        if (!isValidRule(parsed)) {
+          console.warn(`Invalid rule file (missing required fields): ${filePath}`);
+          continue;
+        }
+
+        // Derive ID from relative path without .json extension
+        const relativePath = relative(rulesDir, filePath);
+        const id = relativePath.replace(/\.json$/, '').replace(/\\/g, '/');
+
+        const rule: Rule = {
+          ...parsed,
+          id,
+        };
+        cachedRules.push(rule);
+      } catch (error) {
+        console.warn(`Failed to load rule file ${filePath}: ${error}`);
+      }
     }
+
+    console.log(`Loaded ${cachedRules.length} rules from ${rulesDir}`);
   }
   return cachedRules;
 }

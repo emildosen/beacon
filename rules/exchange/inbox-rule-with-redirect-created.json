@@ -1,0 +1,23 @@
+{
+  "name": "Inbox rule with redirect created",
+  "description": "Inbox rule redirects mail - BEC indicator",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Collection",
+    "technique": "T1114",
+    "subtechnique": "T1114.003"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "New-InboxRule" },
+      { "field": "Parameters.RedirectTo", "operator": "Exists", "value": "" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

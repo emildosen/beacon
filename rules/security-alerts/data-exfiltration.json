@@ -1,0 +1,21 @@
+{
+  "name": "Data exfiltration",
+  "description": "Potential data exfiltration detected",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "SecurityAlert",
+  "mitre": {
+    "tactic": "Exfiltration",
+    "technique": "TA0010"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "category", "operator": "Contains", "value": "Exfiltration" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "High severity security alert",
+  "description": "High severity Microsoft Defender alert",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "SecurityAlert",
+  "mitre": {
+    "tactic": "Multiple",
+    "technique": "Various"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "severity", "operator": "Equals", "value": "high" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

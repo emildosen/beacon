@@ -1,0 +1,23 @@
+{
+  "name": "Inbox rule with delete action",
+  "description": "Inbox rule deletes messages - possible evidence hiding",
+  "severity": "High",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Defense Evasion",
+    "technique": "T1070",
+    "subtechnique": "T1070.008"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "New-InboxRule" },
+      { "field": "Parameters.DeleteMessage", "operator": "Exists", "value": "" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

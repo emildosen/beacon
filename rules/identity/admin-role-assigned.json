@@ -1,0 +1,25 @@
+{
+  "name": "Admin role assigned",
+  "description": "User added to an administrative role",
+  "severity": "High",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Persistence",
+    "technique": "T1098",
+    "subtechnique": "T1098.001"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "Add member to role" },
+      { "field": "ModifiedProperties", "operator": "Contains", "value": "Admin" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26",
+    "updated": "2025-12-26",
+    "notes": "Checks for 'Admin' in role name to avoid false positives on non-admin roles"
+  }
+}

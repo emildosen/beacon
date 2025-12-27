@@ -1,0 +1,32 @@
+{
+  "name": "Transport rule with forwarding created",
+  "description": "Mail flow rule created that forwards or copies mail externally",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Collection",
+    "technique": "T1114",
+    "subtechnique": "T1114.003"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "New-TransportRule" },
+      {
+        "match": "any",
+        "rules": [
+          { "field": "Parameters.BlindCopyTo", "operator": "Exists", "value": "" },
+          { "field": "Parameters.CopyTo", "operator": "Exists", "value": "" },
+          { "field": "Parameters.RedirectMessageTo", "operator": "Exists", "value": "" }
+        ]
+      }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26",
+    "updated": "2025-12-26",
+    "notes": "Only triggers on transport rules with forwarding/copying actions"
+  }
+}

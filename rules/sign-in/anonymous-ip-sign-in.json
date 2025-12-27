@@ -1,0 +1,22 @@
+{
+  "name": "Anonymous IP sign-in",
+  "description": "Sign-in from anonymous IP (VPN/Tor)",
+  "severity": "High",
+  "enabled": true,
+  "source": "SignIn",
+  "mitre": {
+    "tactic": "Command and Control",
+    "technique": "T1090",
+    "subtechnique": "T1090.003"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "riskEventTypes", "operator": "Contains", "value": "anonymizedIPAddress" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

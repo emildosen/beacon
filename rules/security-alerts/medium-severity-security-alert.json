@@ -1,0 +1,21 @@
+{
+  "name": "Medium severity security alert",
+  "description": "Medium severity Microsoft Defender alert",
+  "severity": "High",
+  "enabled": true,
+  "source": "SecurityAlert",
+  "mitre": {
+    "tactic": "Multiple",
+    "technique": "Various"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "severity", "operator": "Equals", "value": "medium" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

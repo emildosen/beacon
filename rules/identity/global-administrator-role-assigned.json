@@ -1,0 +1,23 @@
+{
+  "name": "Global Administrator role assigned",
+  "description": "User added to Global Administrator role",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Persistence",
+    "technique": "T1098",
+    "subtechnique": "T1098.001"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "Add member to role" },
+      { "field": "ModifiedProperties", "operator": "Contains", "value": "Global Administrator" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

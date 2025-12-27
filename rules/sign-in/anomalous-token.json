@@ -1,0 +1,21 @@
+{
+  "name": "Anomalous token",
+  "description": "Anomalous token detected - possible token theft",
+  "severity": "High",
+  "enabled": true,
+  "source": "SignIn",
+  "mitre": {
+    "tactic": "Credential Access",
+    "technique": "T1528"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "riskEventTypes", "operator": "Contains", "value": "anomalousToken" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "App role assigned to service principal",
+  "description": "Application permission assigned - check scope",
+  "severity": "High",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Persistence",
+    "technique": "T1098",
+    "subtechnique": "T1098.001"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "Add app role assignment to service principal" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

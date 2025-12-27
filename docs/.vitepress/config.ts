@@ -2,6 +2,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: "Beacon",
+  titleTemplate: ':title | Beacon - M365 Security Alerting',
   description: "Multi-tenant M365 security alerting for MSPs",
   themeConfig: {
     nav: [
@@ -20,7 +21,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/yourusername/beacon' }
+      { icon: 'github', link: 'https://github.com/emildosen/beacon' }
     ]
   }
 })

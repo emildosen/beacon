@@ -1,0 +1,22 @@
+{
+  "name": "Impossible travel sign-in",
+  "description": "Impossible travel - sign-in from distant location",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "SignIn",
+  "mitre": {
+    "tactic": "Defense Evasion",
+    "technique": "T1078",
+    "subtechnique": "T1078.004"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "riskEventTypes", "operator": "Contains", "value": "impossibleTravel" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

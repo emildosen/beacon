@@ -1,0 +1,25 @@
+{
+  "name": "Send-as permission added",
+  "description": "Send-as permission granted - can impersonate sender",
+  "severity": "High",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Persistence",
+    "technique": "T1098",
+    "subtechnique": "T1098.002"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "Add-RecipientPermission" },
+      { "field": "Parameters.AccessRights", "operator": "Contains", "value": "SendAs" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26",
+    "updated": "2025-12-26",
+    "notes": "Filters for SendAs permission specifically"
+  }
+}

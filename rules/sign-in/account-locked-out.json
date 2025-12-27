@@ -1,0 +1,22 @@
+{
+  "name": "Account locked out",
+  "description": "Account locked - possible brute force attack",
+  "severity": "High",
+  "enabled": true,
+  "source": "SignIn",
+  "mitre": {
+    "tactic": "Credential Access",
+    "technique": "T1110",
+    "subtechnique": "T1110.001"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "status.errorCode", "operator": "Equals", "value": "50053" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

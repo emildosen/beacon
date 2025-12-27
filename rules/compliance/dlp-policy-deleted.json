@@ -1,0 +1,22 @@
+{
+  "name": "DLP policy deleted",
+  "description": "DLP policy deleted - data protection removed",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Defense Evasion",
+    "technique": "T1562",
+    "subtechnique": "T1562.001"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "Remove-DlpCompliancePolicy" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

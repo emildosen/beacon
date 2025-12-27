@@ -1,0 +1,22 @@
+{
+  "name": "Suspicious inbox manipulation",
+  "description": "Suspicious inbox forwarding detected post-sign-in",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "SignIn",
+  "mitre": {
+    "tactic": "Collection",
+    "technique": "T1114",
+    "subtechnique": "T1114.003"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "riskEventTypes", "operator": "Contains", "value": "suspiciousInboxForwarding" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

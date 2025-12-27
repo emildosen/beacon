@@ -3,15 +3,39 @@ export type RuleSource = 'AuditLog' | 'SignIn' | 'SecurityAlert';
 export type RuleOperator = 'Exists' | 'Equals' | 'Contains' | 'NotEquals';
 export type Severity = 'Critical' | 'High' | 'Medium' | 'Low';
 
-export interface Rule {
-  name: string;
-  source: RuleSource;
-  operation?: string;
-  propertyPath?: string;
+export interface RuleCondition {
+  field: string;
   operator: RuleOperator;
   value?: string;
-  severity: Severity;
+}
+
+export interface Rule {
+  id: string; // Derived from file path (e.g., "identity/admin-role-assigned")
+  name: string;
   description: string;
+  severity: Severity;
+  enabled: boolean;
+
+  mitre?: {
+    tactic?: string;
+    technique?: string;
+    subtechnique?: string;
+  };
+
+  source: RuleSource;
+  conditions: {
+    match: 'all' | 'any';
+    rules: RuleCondition[];
+  };
+
+  exceptions?: RuleCondition[];
+
+  meta?: {
+    author?: string;
+    created?: string;
+    references?: string[];
+  };
+
   tenantIds?: string[]; // Optional: limit rule to specific client tenant IDs. If omitted, applies to all tenants.
 }
 

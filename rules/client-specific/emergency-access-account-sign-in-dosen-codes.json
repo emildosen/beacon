@@ -1,0 +1,23 @@
+{
+  "name": "Emergency access account sign-in Dosen Codes",
+  "description": "Emergency/break-glass account was used to sign in",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "SignIn",
+  "tenantIds": ["d5d11700-4c7c-463f-83e3-c6f26e4502c8"],
+  "mitre": {
+    "tactic": "Defense Evasion",
+    "technique": "T1078",
+    "subtechnique": "T1078.004"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "userPrincipalName", "operator": "Equals", "value": "dev-emil@dosen.codes" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

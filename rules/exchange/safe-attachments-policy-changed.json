@@ -1,0 +1,22 @@
+{
+  "name": "Safe attachments policy changed",
+  "description": "Safe Attachments policy modified",
+  "severity": "High",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Defense Evasion",
+    "technique": "T1562",
+    "subtechnique": "T1562.001"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "Set-SafeAttachmentPolicy" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

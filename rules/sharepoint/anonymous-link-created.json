@@ -1,0 +1,21 @@
+{
+  "name": "Anonymous link created",
+  "description": "Anonymous sharing link created - data exposure risk",
+  "severity": "High",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Exfiltration",
+    "technique": "T1567"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "AnonymousLinkCreated" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

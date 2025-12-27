@@ -1,0 +1,23 @@
+{
+  "name": "Mailbox forwarding enabled",
+  "description": "External mail forwarding configured - BEC indicator",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Collection",
+    "technique": "T1114",
+    "subtechnique": "T1114.003"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "Set-Mailbox" },
+      { "field": "Parameters.ForwardingSmtpAddress", "operator": "Exists", "value": "" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

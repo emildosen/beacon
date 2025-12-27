@@ -1,0 +1,25 @@
+{
+  "name": "eDiscovery search exported",
+  "description": "eDiscovery search results exported - potential data exfiltration",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Collection",
+    "technique": "T1213",
+    "subtechnique": "T1213.002"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "New-ComplianceSearchAction" },
+      { "field": "Parameters.Action", "operator": "Equals", "value": "Export" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26",
+    "updated": "2025-12-26",
+    "notes": "Filters for Export action only, excludes Preview and Purge"
+  }
+}

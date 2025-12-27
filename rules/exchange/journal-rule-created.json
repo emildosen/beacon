@@ -1,0 +1,22 @@
+{
+  "name": "Journal rule created",
+  "description": "Email journaling rule created - mail being copied externally",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Collection",
+    "technique": "T1114",
+    "subtechnique": "T1114.003"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "New-JournalRule" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

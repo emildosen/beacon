@@ -1,0 +1,25 @@
+{
+  "name": "Mailbox full access granted",
+  "description": "Full access permission granted to mailbox",
+  "severity": "High",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Persistence",
+    "technique": "T1098",
+    "subtechnique": "T1098.002"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "Add-MailboxPermission" },
+      { "field": "Parameters.AccessRights", "operator": "Contains", "value": "FullAccess" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26",
+    "updated": "2025-12-26",
+    "notes": "Filters for FullAccess only, excludes ReadPermission grants"
+  }
+}

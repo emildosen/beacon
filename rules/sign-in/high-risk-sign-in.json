@@ -1,0 +1,22 @@
+{
+  "name": "High risk sign-in",
+  "description": "High risk sign-in detected by Identity Protection",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "SignIn",
+  "mitre": {
+    "tactic": "Initial Access",
+    "technique": "T1078",
+    "subtechnique": "T1078.004"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "riskLevelDuringSignIn", "operator": "Equals", "value": "high" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}

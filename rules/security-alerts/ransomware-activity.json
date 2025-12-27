@@ -1,0 +1,21 @@
+{
+  "name": "Ransomware activity",
+  "description": "Potential ransomware activity detected",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "SecurityAlert",
+  "mitre": {
+    "tactic": "Impact",
+    "technique": "T1486"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "category", "operator": "Contains", "value": "Ransomware" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26"
+  }
+}
