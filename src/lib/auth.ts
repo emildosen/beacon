@@ -35,7 +35,6 @@ export function getClientCredential(tenantId: string): ClientSecretCredential {
       throw new Error('Missing required environment variables: CLIENT_ID, CLIENT_SECRET');
     }
 
-    console.log(`Creating client credential for tenant: ${tenantId}`);
     credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
     clientCredentials.set(tenantId, credential);
   }

@@ -15,6 +15,7 @@ dist-ssr
 local.settings.json
 clients.json
 rules.json
+alerts.json
 
 # Editor directories and files
 .vscode/*
@@ -43,3 +44,6 @@ CLAUDE.md
 
 # Reference
 _reference/
+
+# Azurite local storage
+.azurite/

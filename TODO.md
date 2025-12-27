@@ -3,3 +3,4 @@
 - Alerts (email, Teams webhook)
 - Log Analytics Workbook dashboard
 - Deployment automation, Bicep templates, setup script, and instructions
+- Client specific rules, like emergency access account use

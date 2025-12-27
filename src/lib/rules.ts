@@ -50,13 +50,23 @@ function matchesOperator(
 /**
  * Evaluates an event against all rules for the given source type
  * Returns the first matching rule or null
+ * @param tenantId - Optional tenant ID to filter tenant-specific rules
  */
 export function evaluateRules(
   event: AuditEvent | SignInLog | SecurityAlert,
-  source: RuleSource
+  source: RuleSource,
+  tenantId?: string
 ): Rule | null {
   const rules = getRules();
-  const applicableRules = rules.filter((rule) => rule.source === source);
+  const applicableRules = rules.filter((rule) => {
+    // Filter by source type
+    if (rule.source !== source) return false;
+    // Filter by tenant ID if rule has tenantIds specified
+    if (rule.tenantIds && rule.tenantIds.length > 0) {
+      if (!tenantId || !rule.tenantIds.includes(tenantId)) return false;
+    }
+    return true;
+  });
 
   for (const rule of applicableRules) {
     // For AuditLog events, check operation match first

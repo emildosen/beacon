@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { Rule, Client } from './types.js';
+import { Rule, Client, AlertsConfig } from './types.js';
 
 // Get the project root directory
 const __filename = fileURLToPath(import.meta.url);
@@ -11,6 +11,7 @@ const clientsPath = join(projectRoot, 'clients.json');
 
 let cachedClients: Client[] | null = null;
 let cachedRules: Rule[] | null = null;
+let cachedAlertsConfig: AlertsConfig | null = null;
 
 /**
  * Loads and caches clients from clients.json
@@ -58,9 +59,28 @@ export function getRules(): Rule[] {
 }
 
 /**
+ * Loads and caches alerts config from alerts.json
+ */
+export function getAlertsConfig(): AlertsConfig {
+  if (cachedAlertsConfig === null) {
+    const alertsPath = join(projectRoot, 'alerts.json');
+    try {
+      const content = readFileSync(alertsPath, 'utf-8');
+      cachedAlertsConfig = JSON.parse(content) as AlertsConfig;
+      console.log(`Loaded alerts config: enabled=${cachedAlertsConfig.enabled}, minimumSeverity=${cachedAlertsConfig.minimumSeverity}`);
+    } catch (error) {
+      console.log('alerts.json not found or invalid, Teams notifications disabled');
+      cachedAlertsConfig = { webhookUrl: '', minimumSeverity: 'Medium', enabled: false };
+    }
+  }
+  return cachedAlertsConfig;
+}
+
+/**
  * Clears cached config (useful for testing or hot-reload)
  */
 export function clearConfigCache(): void {
   cachedClients = null;
   cachedRules = null;
+  cachedAlertsConfig = null;
 }

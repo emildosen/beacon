@@ -12,19 +12,23 @@ export interface Rule {
   value?: string;
   severity: Severity;
   description: string;
+  tenantIds?: string[]; // Optional: limit rule to specific client tenant IDs. If omitted, applies to all tenants.
 }
 
 // Alert schema for Log Analytics
 export interface Alert {
-  TimeGenerated: string;
-  TenantId: string;
-  TenantName: string;
+  TimeGenerated: string; // When the source event actually occurred
+  TimeProcessed: string; // When Beacon processed the alert
+  ClientTenantId: string;
+  ClientTenantName: string;
+  User: string; // UPN of the user who initiated the action
   RuleName: string;
   Severity: string;
   Description: string;
   SourceType: string;
   SourceEventId: string;
   RawEventSummary?: string;
+  ShouldNotify?: boolean; // Whether this alert should trigger Teams notification (used for throttling)
 }
 
 // Office 365 Management Activity API audit event
@@ -153,3 +157,18 @@ export interface Client {
   tenantId: string;
   lastPoll?: string; // ISO timestamp of last successful poll
 }
+
+// Alerts configuration from alerts.json
+export interface AlertsConfig {
+  webhookUrl: string;
+  minimumSeverity: Severity;
+  enabled: boolean;
+}
+
+// Severity level ordering for comparison
+export const SEVERITY_ORDER: Record<Severity, number> = {
+  Low: 1,
+  Medium: 2,
+  High: 3,
+  Critical: 4,
+};
