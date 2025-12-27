@@ -62,8 +62,7 @@ Run the deployment command, replacing the location with your preferred Azure reg
 ```bash
 az deployment sub create \
   --location australiaeast \
-  --template-file beacon.bicep \
-  --parameters location=australiaeast
+  --template-file beacon.bicep
 ```
 
 ::: info Available Regions

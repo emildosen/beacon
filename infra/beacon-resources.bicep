@@ -189,7 +189,7 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
     tier: selectedSku.tier
   }
   properties: {
-    reserved: false // Windows
+    reserved: true // Linux
   }
 }
 
@@ -197,15 +197,14 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
 resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
   name: functionAppName
   location: location
-  kind: 'functionapp'
+  kind: 'functionapp,linux'
   identity: {
     type: 'SystemAssigned'
   }
   properties: {
     serverFarmId: appServicePlan.id
     siteConfig: {
-      netFrameworkVersion: 'v8.0'
-      nodeVersion: '~22'
+      linuxFxVersion: 'Node|22'
       cors: {
         allowedOrigins: [
           'https://portal.azure.com'
@@ -231,10 +230,6 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'FUNCTIONS_WORKER_RUNTIME'
           value: 'node'
-        }
-        {
-          name: 'WEBSITE_NODE_DEFAULT_VERSION'
-          value: '~22'
         }
         // Azure SDK environment variables for managed identity with federated credential
         {

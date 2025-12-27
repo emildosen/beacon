@@ -7,8 +7,8 @@ targetScope = 'subscription'
 @description('Name for the resource group')
 param resourceGroupName string = 'rg-beacon'
 
-@description('Azure region for all resources')
-param location string
+@description('Azure region for all resources. Defaults to deployment location.')
+param location string = deployment().location
 
 @description('Application name (used for app registration and resources)')
 param appName string = 'Beacon'
