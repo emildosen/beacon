@@ -5,7 +5,7 @@
   "enabled": true,
   "source": "SignIn",
   "mitre": {
-    "tactic": "Command and Control",
+    "tactic": "Defense Evasion",
     "technique": "T1090",
     "subtechnique": "T1090.003"
   },

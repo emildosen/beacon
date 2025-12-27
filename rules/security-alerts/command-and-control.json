@@ -6,7 +6,7 @@
   "source": "SecurityAlert",
   "mitre": {
     "tactic": "Command and Control",
-    "technique": "TA0011"
+    "technique": "T1071"
   },
   "conditions": {
     "match": "all",

@@ -17,6 +17,8 @@ local.settings.json
 clients.json
 rules.json
 alerts.json
+rules/client-specific/*
+!rules/client-specific/emergency-access-account-sign-in-contoso.template.json
 
 # Docs
 docs/.vitepress/dist
@@ -52,3 +54,6 @@ _reference/
 
 # Azurite local storage
 .azurite/
+
+# Test data (may contain sensitive audit logs)
+test-data/

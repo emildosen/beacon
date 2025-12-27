@@ -5,7 +5,7 @@
   "enabled": true,
   "source": "SignIn",
   "mitre": {
-    "tactic": "Defense Evasion",
+    "tactic": "Initial Access",
     "technique": "T1078",
     "subtechnique": "T1078.004"
   },

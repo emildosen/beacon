@@ -1,19 +1,19 @@
 {
-  "name": "Emergency access account sign-in Dosen Codes",
+  "name": "Emergency access account sign-in Contoso",
   "description": "Emergency/break-glass account was used to sign in",
   "severity": "Critical",
   "enabled": true,
   "source": "SignIn",
-  "tenantIds": ["d5d11700-4c7c-463f-83e3-c6f26e4502c8"],
+  "tenantIds": ["00000000-0000-0000-0000-000000000000"],
   "mitre": {
-    "tactic": "Defense Evasion",
+    "tactic": "Initial Access",
     "technique": "T1078",
     "subtechnique": "T1078.004"
   },
   "conditions": {
     "match": "all",
     "rules": [
-      { "field": "userPrincipalName", "operator": "Equals", "value": "dev-emil@dosen.codes" }
+      { "field": "userPrincipalName", "operator": "Equals", "value": "emergency@contoso.com" }
     ]
   },
   "meta": {

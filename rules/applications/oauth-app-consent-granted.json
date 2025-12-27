@@ -5,9 +5,9 @@
   "enabled": true,
   "source": "AuditLog",
   "mitre": {
-    "tactic": "Defense Evasion",
-    "technique": "T1550",
-    "subtechnique": "T1550.001"
+    "tactic": "Persistence",
+    "technique": "T1098",
+    "subtechnique": "T1098.001"
   },
   "conditions": {
     "match": "all",

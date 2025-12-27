@@ -11,13 +11,14 @@ export default defineConfig({
     logo: '/beacon.png',
     nav: [
       { text: 'Home', link: '/' },
-      { text: 'Overview', link: '/overview' },
-      { text: 'Setup', link: '/getting-started' }
+      { text: 'Introduction', link: '/overview' },
+      { text: 'Setup', link: '/getting-started' },
+      { text: 'Development', link: '/debugging-rules' }
     ],
 
     sidebar: [
       {
-        text: 'Home',
+        text: 'Introduction',
         items: [
           { text: 'Overview', link: '/overview' }
         ]
@@ -27,6 +28,12 @@ export default defineConfig({
         items: [
           { text: 'Getting Started', link: '/getting-started' },
           { text: 'Rules', link: '/rules' }
+        ]
+      },
+      {
+        text: 'Development',
+        items: [
+          { text: 'Debugging Rules', link: '/debugging-rules' }
         ]
       }
     ],

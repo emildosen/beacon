@@ -7,11 +7,11 @@ hero:
   tagline: Detect threats across all your tenants
   actions:
     - theme: brand
-      text: Get Started
-      link: /getting-started
-    - theme: alt
-      text: Overview
+      text: Introduction
       link: /overview
+    - theme: alt
+      text: Setup Guide
+      link: /getting-started
     - theme: alt
       text: View Rules
       link: /rules

@@ -6,7 +6,7 @@
   "source": "SecurityAlert",
   "mitre": {
     "tactic": "Exfiltration",
-    "technique": "TA0010"
+    "technique": "T1567"
   },
   "conditions": {
     "match": "all",

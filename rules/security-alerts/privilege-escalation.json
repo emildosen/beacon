@@ -6,7 +6,7 @@
   "source": "SecurityAlert",
   "mitre": {
     "tactic": "Privilege Escalation",
-    "technique": "TA0004"
+    "technique": "T1068"
   },
   "conditions": {
     "match": "all",
