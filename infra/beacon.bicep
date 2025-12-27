@@ -19,7 +19,7 @@ param appName string = 'Beacon'
   'EP1'
   'B1'
 ])
-param appPlanSku string = 'Y1'
+param appPlanSku string = 'B1'
 
 // Resource Group
 resource rg 'Microsoft.Resources/resourceGroups@2023-07-01' = {

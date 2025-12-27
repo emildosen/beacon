@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "4228700970167852933"
+      "templateHash": "2529801979386401093"
     }
   },
   "parameters": {
@@ -18,8 +18,9 @@
     },
     "location": {
       "type": "string",
+      "defaultValue": "[deployment().location]",
       "metadata": {
-        "description": "Azure region for all resources"
+        "description": "Azure region for all resources. Defaults to deployment location."
       }
     },
     "appName": {
@@ -31,7 +32,7 @@
     },
     "appPlanSku": {
       "type": "string",
-      "defaultValue": "Y1",
+      "defaultValue": "B1",
       "allowedValues": [
         "Y1",
         "EP1",
@@ -78,7 +79,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "4331811207490599137"
+              "templateHash": "13947788546098095378"
             }
           },
           "parameters": {
@@ -97,7 +98,7 @@
             },
             "appPlanSku": {
               "type": "string",
-              "defaultValue": "Y1",
+              "defaultValue": "B1",
               "allowedValues": [
                 "Y1",
                 "EP1",
@@ -458,10 +459,6 @@
                       "value": "node"
                     },
                     {
-                      "name": "WEBSITE_NODE_DEFAULT_VERSION",
-                      "value": "~22"
-                    },
-                    {
                       "name": "AZURE_CLIENT_ID",
                       "value": "[reference('appRegistration').appId]"
                     },
@@ -494,12 +491,20 @@
                       "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};EndpointSuffix={1};AccountKey={2}', variables('storageAccountName'), environment().suffixes.storage, listKeys('storageAccount', '2023-01-01').keys[0].value)]"
                     },
                     {
+                      "name": "WEBSITE_NODE_DEFAULT_VERSION",
+                      "value": "~22"
+                    },
+                    {
                       "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
                       "value": "true"
                     },
                     {
                       "name": "ENABLE_ORYX_BUILD",
                       "value": "true"
+                    },
+                    {
+                      "name": "AzureWebJobsFeatureFlags",
+                      "value": "EnableWorkerIndexing"
                     }
                   ]
                 },
@@ -530,6 +535,19 @@
                 "functionApp"
               ]
             },
+            "sourceControl": {
+              "type": "Microsoft.Web/sites/sourcecontrols",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}', variables('functionAppName'), 'web')]",
+              "properties": {
+                "repoUrl": "https://github.com/emildosen/beacon",
+                "branch": "main",
+                "isManualIntegration": true
+              },
+              "dependsOn": [
+                "functionApp"
+              ]
+            },
             "dcrRoleAssignment": {
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
@@ -542,19 +560,6 @@
               },
               "dependsOn": [
                 "dataCollectionRule",
-                "functionApp"
-              ]
-            },
-            "sourceControl": {
-              "type": "Microsoft.Web/sites/sourcecontrols",
-              "apiVersion": "2023-01-01",
-              "name": "[format('{0}/{1}', variables('functionAppName'), 'web')]",
-              "properties": {
-                "repoUrl": "https://github.com/emildosen/beacon",
-                "branch": "main",
-                "isManualIntegration": true
-              },
-              "dependsOn": [
                 "functionApp"
               ]
             }

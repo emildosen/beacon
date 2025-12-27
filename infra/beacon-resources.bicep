@@ -16,7 +16,7 @@ param appName string = 'Beacon'
   'EP1'
   'B1'
 ])
-param appPlanSku string = 'Y1'
+param appPlanSku string = 'B1'
 
 // Variables
 var skuMap = {
@@ -204,6 +204,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
   properties: {
     serverFarmId: appServicePlan.id
     siteConfig: {
+      alwaysOn: appPlanSku != 'Y1'
       netFrameworkVersion: 'v8.0'
       nodeVersion: '~22'
       cors: {

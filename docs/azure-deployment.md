@@ -78,9 +78,8 @@ You can customise the deployment with these parameters:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `resourceGroupName` | `rg-beacon` | Name for the resource group |
-| `location` | *(required)* | Azure region for all resources |
 | `appName` | `Beacon` | Name used for the app registration and resources |
-| `appPlanSku` | `Y1` | Hosting plan tier (Y1, EP1, B1) |
+| `appPlanSku` | `B1` | Hosting plan tier (Y1, EP1, B1) |
 
 **Example with custom values:**
 
@@ -89,18 +88,21 @@ az deployment sub create \
   --location australiaeast \
   --template-file beacon.bicep \
   --parameters \
-    location=australiaeast \
     resourceGroupName=rg-beacon-prod \
     appName=BeaconProd
 ```
 
 ### Hosting Plan Options
 
+::: warning Cost Warning
+The default `B1` plan costs approximately **$55 USD/month**. This is the recommended option for reliable deployments.
+:::
+
 | SKU | Type | Best For |
 |-----|------|----------|
-| `Y1` | Consumption | Most deployments. Pay only when running, scales to zero. |
+| `B1` | Basic | **Recommended.** Reliable builds and consistent performance. |
+| `Y1` | Consumption | Lower cost (pay-per-use), but deployment builds may timeout. |
 | `EP1` | Elastic Premium | High volume or low-latency requirements. Always warm. |
-| `B1` | Basic | Predictable workloads with consistent usage. |
 
 ## Step 4: Note the Outputs
 
