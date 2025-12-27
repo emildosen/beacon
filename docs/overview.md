@@ -39,7 +39,7 @@ Rules are YAML files stored in `/rules/`. Each rule specifies:
 - **Severity** - `Critical`, `High`, `Medium`, `Low`
 - **MITRE ATT&CK** - Optional tactic/technique mapping
 
-See [Rules](./rules.md) for rule syntax and examples.
+See [Rules](./rules/) for rule syntax and examples.
 
 ## Alert Deduplication
 

@@ -23,6 +23,8 @@ rules/client-specific/*
 # Docs
 docs/.vitepress/dist
 docs/.vitepress/cache
+docs/.vitepress/rules-sidebar.ts
+docs/rules/
 
 # Editor directories and files
 .vscode/*

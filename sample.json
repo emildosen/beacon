@@ -11,57 +11,5 @@
     "SourceType": "AuditLog",
     "SourceEventId": "audit-001-abc123",
     "RawEventSummary": "Add member to role | admin@contoso.com | Global Administrator"
-  },
-  {
-    "TimeGenerated": "2025-12-26T08:45:17.000Z",
-    "TimeProcessed": "2025-12-26T09:20:01.456Z",
-    "ClientTenantId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "ClientTenantName": "Contoso Corp",
-    "User": "john.doe@contoso.com",
-    "RuleName": "Risky Sign-In Detected",
-    "Severity": "High",
-    "Description": "Sign-in flagged as high risk by Azure AD Identity Protection",
-    "SourceType": "SignIn",
-    "SourceEventId": "signin-002-def456",
-    "RawEventSummary": "john.doe@contoso.com | Microsoft 365 | High risk | unfamiliarFeatures"
-  },
-  {
-    "TimeGenerated": "2025-12-26T07:30:00.000Z",
-    "TimeProcessed": "2025-12-26T09:20:01.789Z",
-    "ClientTenantId": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
-    "ClientTenantName": "Fabrikam Inc",
-    "User": "",
-    "RuleName": "Microsoft Defender Alert",
-    "Severity": "Critical",
-    "Description": "Security alert from Microsoft Defender was detected",
-    "SourceType": "SecurityAlert",
-    "SourceEventId": "alert-003-ghi789",
-    "RawEventSummary": "Suspicious PowerShell command line | Critical | Defender for Endpoint"
-  },
-  {
-    "TimeGenerated": "2025-12-26T06:12:45.000Z",
-    "TimeProcessed": "2025-12-26T09:20:02.012Z",
-    "ClientTenantId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "ClientTenantName": "Contoso Corp",
-    "User": "external.guest@outlook.com",
-    "RuleName": "External User Sign-In",
-    "Severity": "Medium",
-    "Description": "An external guest user signed in to the tenant",
-    "SourceType": "SignIn",
-    "SourceEventId": "signin-004-jkl012",
-    "RawEventSummary": "external.guest@outlook.com | SharePoint Online | Success | Guest"
-  },
-  {
-    "TimeGenerated": "2025-12-26T05:00:22.000Z",
-    "TimeProcessed": "2025-12-26T09:20:02.345Z",
-    "ClientTenantId": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
-    "ClientTenantName": "Fabrikam Inc",
-    "User": "sarah.admin@fabrikam.com",
-    "RuleName": "MFA Disabled for User",
-    "Severity": "Critical",
-    "Description": "Multi-factor authentication was disabled for a user account",
-    "SourceType": "AuditLog",
-    "SourceEventId": "audit-005-mno345",
-    "RawEventSummary": "Disable Strong Authentication | sarah.admin@fabrikam.com | target: bob@fabrikam.com"
   }
 ]

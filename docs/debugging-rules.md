@@ -8,11 +8,13 @@ You can test the rule engine locally against exported logs without waiting for l
 2. Sign in with your M365 account (user icon in the top right corner)
 3. Run one of these queries:
 
+**Sign-in logs (GET)**
 ```
-# Sign-in logs (GET)
 https://graph.microsoft.com/v1.0/auditLogs/signIns?$top=50
+```
 
-# Security alerts (GET)
+**Security alerts (GET)**
+```
 https://graph.microsoft.com/v2.0/security/alerts_v2?$top=50
 ```
 

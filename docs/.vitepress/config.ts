@@ -1,5 +1,12 @@
 import { defineConfig } from 'vitepress'
 
+// Import generated rules sidebar, fallback if not yet generated
+let rulesSidebar = { text: 'Rules', items: [{ text: 'Overview', link: '/rules/' }] }
+try {
+  const mod = await import('./rules-sidebar.js')
+  rulesSidebar = mod.rulesSidebar
+} catch { /* use fallback */ }
+
 export default defineConfig({
   title: "Beacon",
   titleTemplate: ':title | Beacon - M365 Security Alerting',
@@ -26,8 +33,7 @@ export default defineConfig({
       {
         text: 'Setup',
         items: [
-          { text: 'Getting Started', link: '/getting-started' },
-          { text: 'Rules', link: '/rules' }
+          { text: 'Getting Started', link: '/getting-started' }
         ]
       },
       {
@@ -35,7 +41,8 @@ export default defineConfig({
         items: [
           { text: 'Debugging Rules', link: '/debugging-rules' }
         ]
-      }
+      },
+      rulesSidebar
     ],
 
     socialLinks: [

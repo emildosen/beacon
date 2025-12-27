@@ -10,7 +10,7 @@
 
 1. Entra ID → App registrations → New registration
 2. Configure:
-   - Name: `Beacon`
+   - Name, e.g. `Beacon`
    - Supported account types: Accounts in any organizational directory (Multitenant)
    - Redirect URI: Leave blank
 3. Create
@@ -25,7 +25,7 @@
 ### Add client secret
 
 1. Certificates & secrets → Client secrets → New client secret
-2. Description: `Beacon POC`
+2. Description: `Beacon Azure Function`
 3. Expiry: 6 months
 4. Add
 5. Copy the Value immediately, you won't see it again
@@ -50,30 +50,21 @@
 | Permission | Purpose |
 |------------|---------|
 | ActivityFeed.Read | Audit logs |
-| ActivityFeed.ReadDlp | DLP events (optional) |
+| ActivityFeed.ReadDlp | DLP events |
 
 ### Grant admin consent
 
-1. API permissions → Grant admin consent for {tenant}
+1. API permissions → Grant admin consent for [tenant name]
 2. Confirm
 
-## Step 2: Resource Group
-
-1. Azure Portal → Resource groups → Create
-2. Configure:
-   - Subscription: (your sub)
-   - Resource group: `rg-beacon`
-   - Region: (your preferred)
-3. Create
-
-## Step 3: Log Analytics Workspace
+## Step 2: Log Analytics Workspace
 
 1. Azure Portal → Log Analytics workspaces → Create
 2. Configure:
    - Subscription: (your sub)
-   - Resource group: `rg-beacon`
-   - Name: `law-beacon`
-   - Region: (same as resource group)
+   - Resource group, e.g. `rg-beacon`
+   - Name, e.g. `law-beacon`
+   - Region: (pick a region close by)
 3. Review + Create
 
 ### Note these values
@@ -83,14 +74,14 @@
 | Workspace ID | Overview |
 | Resource ID | Properties → Resource ID |
 
-## Step 4: Data Collection Endpoint (DCE)
+## Step 3: Data Collection Endpoint (DCE)
 
 1. Azure Portal → Monitor → Data Collection Endpoints → Create
 2. Configure:
-   - Name: `dce-beacon`
+   - Name, e.g. `dce-beacon`
    - Subscription: (your sub)
-   - Resource group: `rg-beacon`
-   - Region: **Same as Log Analytics workspace**
+   - Resource group: Same as Log Analytics workspace
+   - Region: Same as Log Analytics workspace
 3. Create
 
 ### Note this value
@@ -99,21 +90,26 @@
 |-------|----------|
 | Logs Ingestion URI | Overview |
 
-## Step 5: Custom Table and Data Collection Rule (DCR)
+## Step 4: Custom Table and Data Collection Rule (DCR)
 
 1. Azure Portal → Log Analytics workspace → Tables → Create → New custom log (DCR-based)
 2. Configure:
    - Table name: `Beacon_Alerts` (becomes `Beacon_Alerts_CL`)
-   - Data collection endpoint: Select `dce-beacon`
-   - Data collection rule name: `dcr-beacon-alerts`
+   - Data collection endpoint: Select DCE created in Step 3
+   - Data collection rule name, e.g. `dcr-beacon-alerts`
 3. Next: Upload sample.json to define schema
 4. Review transformation (default is fine)
 5. Create
 
-### Get DCR values
+## Step 5: Grant App Permission to DCR
 
-1. Azure Portal → Monitor → Data Collection Rules
-2. Open `dcr-beacon-alerts`
+1. Open the DCR just created (`dcr-beacon-alerts`)
+2. Go to Access control (IAM) → Add role assignment
+3. Role: `Monitoring Metrics Publisher`
+4. Next → User, group, or service principal → Select members → Search for the app registration (`Beacon`)
+5. Select → Review + assign
+
+### Note these values
 
 | Value | Location |
 |-------|----------|
@@ -122,23 +118,16 @@
 
 Stream name should be: `Custom-Beacon_Alerts_CL`
 
-## Step 6: Grant App Permission to DCR
-
-1. Open DCR (`dcr-beacon-alerts`) → Access control (IAM) → Add role assignment
-2. Role: `Monitoring Metrics Publisher`
-3. Next → User, group, or service principal → Select members → Search for `Beacon`
-4. Select → Review + assign
-
-## Step 7: Storage Account
+## Step 6: Storage Account
 
 Used for Azure Functions runtime and alert deduplication.
 
 1. Azure Portal → Storage accounts → Create
 2. Configure:
    - Subscription: (your sub)
-   - Resource group: `rg-beacon`
-   - Storage account name: `stbeacon` (must be globally unique)
-   - Region: (same as other resources)
+   - Resource group: Same as Log Analytics workspace
+   - Storage account name, e.g. `stbeacon` (must be globally unique)
+   - Region: Same as Log Analytics workspace
    - Performance: Standard
    - Redundancy: LRS
 3. Review + Create
@@ -152,16 +141,16 @@ The following tables are auto-created on first run:
 - `AlertDedup` - 5-minute window for duplicate log suppression
 - `NotificationState` - 1-hour window for notification throttling
 
-## Step 8: Function App
+## Step 7: Function App
 
 1. Azure Portal → Function App → Create
 2. Configure:
    - Subscription: (your sub)
-   - Resource group: `rg-beacon`
-   - Function App name: `func-beacon` (must be globally unique)
+   - Resource group: Same as Log Analytics workspace
+   - Function App name, e.g. `func-beacon` (must be globally unique)
    - Runtime stack: Node.js
    - Version: 20 LTS
-   - Region: (same as other resources)
+   - Region: Same as Log Analytics workspace
    - Operating System: Linux
    - Plan type: Consumption (Serverless)
 3. Review + Create
@@ -185,21 +174,7 @@ The following tables are auto-created on first run:
 
 > **Note:** `AzureWebJobsStorage` is created automatically when you create the Function App and link a storage account. It's required for the Functions runtime. `AZURE_STORAGE_CONNECTION_STRING` is a separate setting used by Beacon for alert deduplication tables.
 
-## Step 9: Teams Webhook (Optional)
-
-1. Teams → Select channel for alerts
-2. Channel settings → Connectors → Incoming Webhook
-3. Configure:
-   - Name: `Beacon Alerts`
-   - Upload icon (optional)
-4. Create → Copy webhook URL
-5. Add to Function App settings:
-
-| Name | Value |
-|------|-------|
-| TEAMS_WEBHOOK_URL | (webhook URL) |
-
-## Step 10: Admin Consent for Client Tenants
+## Step 8: Admin Consent for Client Tenants
 
 Generate consent URL for each client:
 
@@ -207,8 +182,8 @@ Generate consent URL for each client:
 https://login.microsoftonline.com/{client-tenant-id}/adminconsent?client_id={your-app-client-id}
 ```
 
-Have client Global Admin open link and approve. 
-If you haven't configured a redirect URL, you'll get an error, but the app consent should still work.
+Open the consent URL, sign in with Global Admin, and approve to the permissions.
+You'll get a redirect URL error, but the app consent will still work.
 
 ## Verify Setup
 

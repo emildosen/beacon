@@ -1,5 +1,5 @@
 {
-  "name": "Emergency access account sign-in Contoso",
+  "name": "Emergency access account sign-in Template",
   "description": "Emergency/break-glass account was used to sign in",
   "severity": "Critical",
   "enabled": true,

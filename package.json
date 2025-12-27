@@ -8,8 +8,9 @@
     "start": "npm run build && func start",
     "watch": "tsc -w",
     "test-rules": "node --import tsx src/scripts/test-rules.ts",
-    "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
+    "docs:generate": "node --import tsx src/scripts/generate-rules-docs.ts",
+    "docs:dev": "npm run docs:generate && vitepress dev docs",
+    "docs:build": "npm run docs:generate && vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
   "keywords": [],
