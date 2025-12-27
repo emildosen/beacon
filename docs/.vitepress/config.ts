@@ -20,7 +20,7 @@ export default defineConfig({
       { text: 'Home', link: '/' },
       { text: 'Introduction', link: '/overview' },
       { text: 'Setup', link: '/getting-started' },
-      { text: 'Development', link: '/debugging-rules' }
+      { text: 'Rules', link: '/rules' }
     ],
 
     sidebar: [
