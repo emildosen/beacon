@@ -29,9 +29,7 @@ export async function getSignIns(
 
   try {
     const filterDate = since.toISOString();
-    // Fetch all sign-ins for dev, filter risky ones in rule evaluation
     const filter = `createdDateTime ge ${filterDate}`;
-    console.log(`Fetching sign-ins with filter: ${filter}`);
 
     let response: GraphPagedResponse<SignInLog> = await client
       .api('/auditLogs/signIns')
@@ -47,9 +45,7 @@ export async function getSignIns(
       signIns.push(...response.value);
     }
 
-    context.log(`Fetched ${signIns.length} sign-ins since ${filterDate}`);
   } catch (error) {
-    console.error('Error fetching sign-ins:', error);
     context.error('Error fetching sign-ins from Graph API:', error);
   }
 
@@ -70,7 +66,6 @@ export async function getSecurityAlerts(
   try {
     const filterDate = since.toISOString();
     const filter = `createdDateTime ge ${filterDate}`;
-    console.log(`Fetching security alerts with filter: ${filter}`);
 
     let response: GraphPagedResponse<SecurityAlert> = await client
       .api('/security/alerts_v2')
@@ -86,9 +81,7 @@ export async function getSecurityAlerts(
       alerts.push(...response.value);
     }
 
-    context.log(`Fetched ${alerts.length} security alerts since ${filterDate}`);
   } catch (error) {
-    console.error('Error fetching security alerts:', error);
     context.error('Error fetching security alerts from Graph API:', error);
   }
 

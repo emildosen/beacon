@@ -17,19 +17,15 @@ import {
 app.timer('pollAuditLogs', {
   schedule: '0 */5 * * * *', // Every 5 minutes
   handler: async (timer: Timer, context: InvocationContext): Promise<void> => {
-    context.log('Beacon polling started at:', new Date().toISOString());
-
     if (timer.isPastDue) {
-      context.log('Timer is past due - execution delayed');
+      context.warn('Timer past due - execution delayed');
     }
 
     const now = new Date();
     const defaultLookback = 60 * 60 * 1000; // 1 hour for new tenants
     const maxLookback = 6 * 60 * 60 * 1000; // 6 hour max for stale tenants
 
-    // Load clients from config
     const clients = getClients();
-    context.log(`Processing ${clients.length} clients`);
 
     const allAlerts: Alert[] = [];
     let totalEvents = 0;
@@ -47,13 +43,12 @@ app.timer('pollAuditLogs', {
       } else {
         since = new Date(now.getTime() - defaultLookback);
       }
-      context.log(`\n--- Processing client: ${client.name} (${client.tenantId}) since ${since.toISOString()} ---`);
+      context.log(`Processing ${client.name}`);
 
       try {
         const { alerts, eventCount } = await processClient(client, since, context);
         allAlerts.push(...alerts);
         totalEvents += eventCount;
-        context.log(`Client ${client.name}: ${eventCount} events, ${alerts.length} alerts`);
 
         // Update lastPoll on success
         updateClientLastPoll(client.tenantId, now);
@@ -63,13 +58,9 @@ app.timer('pollAuditLogs', {
       }
     }
 
-    // Write all alerts to Log Analytics
-    context.log(`Generated ${allAlerts.length} total alerts from ${totalEvents} events across ${clients.length} clients`);
     if (allAlerts.length > 0) {
-      context.log('Writing alerts to Log Analytics...');
       try {
         await writeAlerts(allAlerts, context);
-        context.log('Alerts written successfully');
       } catch (error) {
         context.error('Failed to write alerts to Log Analytics:', error);
       }
@@ -89,9 +80,7 @@ app.timer('pollAuditLogs', {
       context.error('Failed to cleanup expired state entries:', error);
     }
 
-    context.log(
-      `Beacon polling complete: ${totalEvents} events checked, ${allAlerts.length} alerts generated across ${clients.length} clients`
-    );
+    context.log(`Complete: ${totalEvents} events, ${allAlerts.length} alerts, ${clients.length} clients`);
   },
 });
 
@@ -103,16 +92,11 @@ async function processClient(
   const alerts: Alert[] = [];
   let eventCount = 0;
 
-  // Fetch from all sources in parallel
-  context.log(`Fetching M365 logs for ${client.name}...`);
   const [auditEvents, signIns, securityAlerts] = await Promise.all([
     getAuditEvents(client.tenantId, since, context),
     getSignIns(client.tenantId, since, context),
     getSecurityAlerts(client.tenantId, since, context),
   ]);
-  context.log(`Got ${auditEvents.length} audit events`);
-  context.log(`Got ${signIns.length} sign-ins`);
-  context.log(`Got ${securityAlerts.length} security alerts`);
 
   // Process audit events
   eventCount += auditEvents.length;
@@ -161,9 +145,8 @@ async function processAlert(
   const user = getEventUser(event, source);
   const eventTime = getEventTimestamp(event, source);
 
-  // Layer 1: Check 5-min dedup window for true duplicate suppression
+  // Check 5-min dedup window
   if (await isDuplicate(client.tenantId, rule.name, user, eventTime)) {
-    context.log(`Suppressing duplicate: ${rule.name} for ${user || '(no user)'}`);
     return null;
   }
   await recordAlert(client.tenantId, rule.name, user, eventTime);
@@ -179,8 +162,6 @@ async function processAlert(
 
   if (alert.ShouldNotify) {
     await recordNotification(client.tenantId, rule.name, user);
-  } else {
-    context.log(`Throttling notification: ${rule.name} for ${user || '(no user)'} (already notified within 1 hour)`);
   }
 
   return alert;

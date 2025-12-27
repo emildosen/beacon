@@ -6,7 +6,10 @@
   "scripts": {
     "build": "tsc",
     "start": "npm run build && func start",
-    "watch": "tsc -w"
+    "watch": "tsc -w",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "keywords": [],
   "author": "",
@@ -22,6 +25,7 @@
   "devDependencies": {
     "@types/node": "^25.0.3",
     "azure-functions-core-tools": "^4.6.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitepress": "^1.6.4"
   }
 }

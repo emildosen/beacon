@@ -122,13 +122,7 @@ function buildAdaptiveCard(alerts: Alert[]): object {
 export async function sendTeamsAlerts(alerts: Alert[], context: InvocationContext): Promise<void> {
   const config = getAlertsConfig();
 
-  if (!config.enabled) {
-    context.log('Teams notifications disabled');
-    return;
-  }
-
-  if (!config.webhookUrl) {
-    context.warn('Teams webhook URL not configured');
+  if (!config.enabled || !config.webhookUrl) {
     return;
   }
 
@@ -139,16 +133,8 @@ export async function sendTeamsAlerts(alerts: Alert[], context: InvocationContex
   const filteredAlerts = severityFiltered.filter((alert) => alert.ShouldNotify !== false);
 
   if (filteredAlerts.length === 0) {
-    const throttledCount = severityFiltered.length - filteredAlerts.length;
-    if (throttledCount > 0) {
-      context.log(`No alerts to notify (${throttledCount} throttled, ${alerts.length - severityFiltered.length} below ${config.minimumSeverity} severity)`);
-    } else {
-      context.log(`No alerts meet minimum severity threshold (${config.minimumSeverity})`);
-    }
     return;
   }
-
-  context.log(`Sending ${filteredAlerts.length} alerts to Teams (filtered from ${alerts.length} total)`);
 
   const card = buildAdaptiveCard(filteredAlerts);
 
@@ -162,6 +148,4 @@ export async function sendTeamsAlerts(alerts: Alert[], context: InvocationContex
     const text = await response.text();
     throw new Error(`Teams webhook failed: ${response.status} ${text}`);
   }
-
-  context.log('Teams notification sent successfully');
 }

@@ -56,32 +56,27 @@ export async function getAuditEvents(
   }
 
   // Ensure subscriptions are active for all content types
-  // Only need to check the first one - if tenant doesn't exist, skip all
   for (const contentType of CONTENT_TYPES) {
-    const result = await startSubscription(tenantId, contentType, token);
+    const result = await startSubscription(tenantId, contentType, token, context);
     if (result.skipTenant) {
       return []; // Tenant not configured for audit logging
-    }
-    if (!result.success) {
-      context.warn(`[${tenantId}] Subscription not active for ${contentType}`);
     }
   }
 
   // Fetch content from all content types in parallel
   const contentPromises = CONTENT_TYPES.map(async (contentType) => {
     try {
-      const blobs = await listContent(tenantId, contentType, since, now, token);
-      context.log(`Found ${blobs.length} content blobs for ${contentType}`);
+      const blobs = await listContent(tenantId, contentType, since, now, token, context);
 
       // Fetch each blob (sequentially to avoid rate limiting)
       const typeEvents: AuditEvent[] = [];
       for (const blob of blobs) {
-        const blobEvents = await fetchContentBlob(blob.contentUri, token);
+        const blobEvents = await fetchContentBlob(blob.contentUri, token, context);
         typeEvents.push(...blobEvents);
       }
       return typeEvents;
     } catch (error) {
-      context.error(`Error fetching ${contentType}:`, error);
+      context.error(`[${tenantId}] Error fetching ${contentType}:`, error);
       return [];
     }
   });
@@ -91,18 +86,17 @@ export async function getAuditEvents(
     events.push(...result);
   }
 
-  context.log(`Fetched ${events.length} total audit events from Management API`);
   return events;
 }
 
 /**
  * Starts a subscription for a content type (idempotent)
- * Returns true if subscription is active, false if failed
  */
 async function startSubscription(
   tenantId: string,
   contentType: ContentType,
-  token: string
+  token: string,
+  context: InvocationContext
 ): Promise<{ success: boolean; skipTenant?: boolean }> {
   const url = `${BASE_URL}/${tenantId}/activity/feed/subscriptions/start?contentType=${contentType}`;
 
@@ -114,7 +108,6 @@ async function startSubscription(
     },
   });
 
-  // 200 = newly started, AF20024 error = already enabled (both are success)
   if (response.ok) {
     return { success: true };
   }
@@ -127,29 +120,27 @@ async function startSubscription(
   }
 
   // Tenant doesn't have audit logging enabled - skip entire tenant
-  if (body.includes('does not exist') || body.includes('Tenant') && body.includes('not exist')) {
-    console.warn(`[${tenantId}] Audit logging not enabled for tenant - enable in M365 compliance center`);
+  if (body.includes('does not exist') || (body.includes('Tenant') && body.includes('not exist'))) {
+    context.warn(`[${tenantId}] Audit logging not enabled - enable in M365 compliance center`);
     return { success: false, skipTenant: true };
   }
 
-  console.error(`[${tenantId}] Failed to start ${contentType} subscription: ${response.status}`);
+  context.warn(`[${tenantId}] Subscription not active for ${contentType}: ${response.status}`);
   return { success: false };
 }
 
 /**
  * Lists available content blobs for a time window
- * Handles pagination via NextPageUri header
  */
 async function listContent(
   tenantId: string,
   contentType: ContentType,
   startTime: Date,
   endTime: Date,
-  token: string
+  token: string,
+  context: InvocationContext
 ): Promise<ContentBlob[]> {
   const blobs: ContentBlob[] = [];
-
-  // Format times as ISO strings (API requires this format)
   const start = startTime.toISOString();
   const end = endTime.toISOString();
 
@@ -172,14 +163,14 @@ async function listContent(
         break;
       }
       const body = await response.text();
-      console.error(`Failed to list content for ${contentType}: ${response.status} ${body}`);
+      context.error(`[${tenantId}] Failed to list ${contentType} content: ${response.status} ${body}`);
       break;
     }
 
     const data: ContentBlob[] = await response.json();
     blobs.push(...data);
 
-    // Check for pagination via NextPageUri header
+    // Handle pagination
     nextUrl = response.headers.get('NextPageUri');
   }
 
@@ -189,7 +180,11 @@ async function listContent(
 /**
  * Fetches a content blob and returns the audit records
  */
-async function fetchContentBlob(contentUri: string, token: string): Promise<AuditEvent[]> {
+async function fetchContentBlob(
+  contentUri: string,
+  token: string,
+  context: InvocationContext
+): Promise<AuditEvent[]> {
   const response = await fetch(contentUri, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -198,7 +193,7 @@ async function fetchContentBlob(contentUri: string, token: string): Promise<Audi
 
   if (!response.ok) {
     const body = await response.text();
-    console.error(`Failed to fetch content blob: ${response.status} ${body}`);
+    context.error(`Failed to fetch content blob: ${response.status} ${body}`);
     return [];
   }
 

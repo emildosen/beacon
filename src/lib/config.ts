@@ -21,7 +21,6 @@ export function getClients(): Client[] {
     try {
       const content = readFileSync(clientsPath, 'utf-8');
       cachedClients = JSON.parse(content) as Client[];
-      console.log(`Loaded ${cachedClients.length} clients from clients.json`);
     } catch (error) {
       throw new Error(`Failed to load clients.json: ${error}`);
     }
@@ -50,7 +49,6 @@ export function getRules(): Rule[] {
     try {
       const content = readFileSync(rulesPath, 'utf-8');
       cachedRules = JSON.parse(content) as Rule[];
-      console.log(`Loaded ${cachedRules.length} rules from rules.json`);
     } catch (error) {
       throw new Error(`Failed to load rules.json: ${error}`);
     }
@@ -67,9 +65,7 @@ export function getAlertsConfig(): AlertsConfig {
     try {
       const content = readFileSync(alertsPath, 'utf-8');
       cachedAlertsConfig = JSON.parse(content) as AlertsConfig;
-      console.log(`Loaded alerts config: enabled=${cachedAlertsConfig.enabled}, minimumSeverity=${cachedAlertsConfig.minimumSeverity}`);
-    } catch (error) {
-      console.log('alerts.json not found or invalid, Teams notifications disabled');
+    } catch {
       cachedAlertsConfig = { webhookUrl: '', minimumSeverity: 'Medium', enabled: false };
     }
   }
