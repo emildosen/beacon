@@ -1,0 +1,6 @@
+@echo off
+echo Installing dependencies...
+call npm install --production=false
+echo Building TypeScript...
+call npm run build
+echo Deployment complete

@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "9117766519479492670"
+      "templateHash": "4360451327621891685"
     }
   },
   "parameters": {
@@ -342,7 +342,7 @@
         "tier": "[variables('selectedSku').tier]"
       },
       "properties": {
-        "reserved": true
+        "reserved": false
       }
     },
     "functionApp": {
@@ -350,14 +350,15 @@
       "apiVersion": "2023-01-01",
       "name": "[variables('functionAppName')]",
       "location": "[parameters('location')]",
-      "kind": "functionapp,linux",
+      "kind": "functionapp",
       "identity": {
         "type": "SystemAssigned"
       },
       "properties": {
         "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
         "siteConfig": {
-          "linuxFxVersion": "Node|22",
+          "netFrameworkVersion": "v8.0",
+          "nodeVersion": "~22",
           "cors": {
             "allowedOrigins": [
               "https://portal.azure.com"
@@ -417,12 +418,20 @@
               "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};EndpointSuffix={1};AccountKey={2}', variables('storageAccountName'), environment().suffixes.storage, listKeys('storageAccount', '2023-01-01').keys[0].value)]"
             },
             {
+              "name": "WEBSITE_NODE_DEFAULT_VERSION",
+              "value": "~22"
+            },
+            {
               "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
               "value": "true"
             },
             {
               "name": "ENABLE_ORYX_BUILD",
               "value": "true"
+            },
+            {
+              "name": "POST_BUILD_COMMAND",
+              "value": "npm run build"
             }
           ]
         },
@@ -453,6 +462,19 @@
         "functionApp"
       ]
     },
+    "sourceControl": {
+      "type": "Microsoft.Web/sites/sourcecontrols",
+      "apiVersion": "2023-01-01",
+      "name": "[format('{0}/{1}', variables('functionAppName'), 'web')]",
+      "properties": {
+        "repoUrl": "https://github.com/emildosen/beacon",
+        "branch": "main",
+        "isManualIntegration": true
+      },
+      "dependsOn": [
+        "functionApp"
+      ]
+    },
     "dcrRoleAssignment": {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
@@ -465,19 +487,6 @@
       },
       "dependsOn": [
         "dataCollectionRule",
-        "functionApp"
-      ]
-    },
-    "sourceControl": {
-      "type": "Microsoft.Web/sites/sourcecontrols",
-      "apiVersion": "2023-01-01",
-      "name": "[format('{0}/{1}', variables('functionAppName'), 'web')]",
-      "properties": {
-        "repoUrl": "https://github.com/emildosen/beacon",
-        "branch": "main",
-        "isManualIntegration": true
-      },
-      "dependsOn": [
         "functionApp"
       ]
     }

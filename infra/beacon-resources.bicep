@@ -189,7 +189,7 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
     tier: selectedSku.tier
   }
   properties: {
-    reserved: true // Linux
+    reserved: false // Windows
   }
 }
 
@@ -197,14 +197,15 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
 resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
   name: functionAppName
   location: location
-  kind: 'functionapp,linux'
+  kind: 'functionapp'
   identity: {
     type: 'SystemAssigned'
   }
   properties: {
     serverFarmId: appServicePlan.id
     siteConfig: {
-      linuxFxVersion: 'Node|22'
+      netFrameworkVersion: 'v8.0'
+      nodeVersion: '~22'
       cors: {
         allowedOrigins: [
           'https://portal.azure.com'
@@ -268,12 +269,20 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
         }
         {
+          name: 'WEBSITE_NODE_DEFAULT_VERSION'
+          value: '~22'
+        }
+        {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
           value: 'true'
         }
         {
           name: 'ENABLE_ORYX_BUILD'
           value: 'true'
+        }
+        {
+          name: 'AzureWebJobsFeatureFlags'
+          value: 'EnableWorkerIndexing'
         }
       ]
     }
@@ -292,6 +301,17 @@ resource federatedCredential 'Microsoft.Graph/applications/federatedIdentityCred
   description: 'Federated credential for ${functionAppName} managed identity'
 }
 
+// Deploy function code from GitHub
+resource sourceControl 'Microsoft.Web/sites/sourcecontrols@2023-01-01' = {
+  parent: functionApp
+  name: 'web'
+  properties: {
+    repoUrl: 'https://github.com/emildosen/beacon'
+    branch: 'main'
+    isManualIntegration: true
+  }
+}
+
 // Role assignment: Monitoring Metrics Publisher for Function App to write to DCR
 resource dcrRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(dataCollectionRule.id, functionApp.id, '3913510d-42f4-4e42-8a64-420c390055eb')
@@ -303,16 +323,6 @@ resource dcrRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' 
   }
 }
 
-// Deploy function code from GitHub
-resource sourceControl 'Microsoft.Web/sites/sourcecontrols@2023-01-01' = {
-  parent: functionApp
-  name: 'web'
-  properties: {
-    repoUrl: 'https://github.com/emildosen/beacon'
-    branch: 'main'
-    isManualIntegration: true
-  }
-}
 
 // Outputs
 output functionAppName string = functionApp.name
