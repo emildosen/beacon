@@ -14,9 +14,6 @@ dist-ssr
 *.local
 .env
 local.settings.json
-clients.json
-rules.json
-alerts.json
 rules/client-specific/*
 !rules/client-specific/emergency-access-account-sign-in-contoso.template.json
 

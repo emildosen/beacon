@@ -154,31 +154,6 @@ For each client tenant you want to monitor:
 After granting consent, you'll see an error. This is expected. The app has no redirect URL configured, so the browser has nowhere to go. The consent itself was granted successfully.
 :::
 
-## Step 6: Configure Client Tenants
-
-The template has created everything needed, including Log Analytics. All that's left is to add your client tenants.
-
-Create a `clients.json` file in the Function App with your client tenant details:
-
-```json
-[
-  {
-    "name": "Contoso Corp",
-    "tenantId": "00000000-0000-0000-0000-000000000000"
-  },
-  {
-    "name": "Fabrikam Inc",
-    "tenantId": "11111111-1111-1111-1111-111111111111"
-  }
-]
-```
-
-You can upload this file via the Azure Portal:
-1. Open the Function App → **App files**
-2. Select **clients.json** from the dropdown (or create it)
-3. Paste your tenant configuration
-4. Save
-
 ## Verify Deployment
 
 1. Open the [Azure Portal](https://portal.azure.com)
@@ -236,7 +211,6 @@ If alerts aren't appearing in the `Beacon_Alerts_CL` table:
 1. Check the Function App logs for errors
 2. Verify the function has run at least once (check **Monitor** in the function)
 3. Ensure admin consent was granted for client tenants
-4. Confirm `clients.json` has been configured with valid tenant IDs
 
 ## Updating Beacon
 

@@ -193,7 +193,7 @@ export interface Client {
   statusMessage?: string; // Additional error details
 }
 
-// Alerts configuration from alerts.json
+// Alerts configuration
 export interface AlertsConfig {
   webhookUrl: string;
   minimumSeverity: Severity;
