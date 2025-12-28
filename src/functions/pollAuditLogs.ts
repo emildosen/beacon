@@ -4,8 +4,8 @@ import { getSignIns, getSecurityAlerts } from '../lib/graph.js';
 import { evaluateRules, getEventId, getEventSummary } from '../lib/rules.js';
 import { writeAlerts } from '../lib/logAnalytics.js';
 import { sendTeamsAlerts } from '../lib/teams.js';
-import { getClients, updateClientStatus, getRules, PLACEHOLDER_TENANT_ID } from '../lib/config.js';
-import { Alert, AuditEvent, SignInLog, SecurityAlert, RuleSource, Client, Rule, ClientStatus } from '../lib/types.js';
+import { getClients, updateClientStatus, getRules, PLACEHOLDER_TENANT_ID, logRun, cleanupOldRuns } from '../lib/config.js';
+import { Alert, AuditEvent, SignInLog, SecurityAlert, RuleSource, Client, Rule, ClientStatus, RunStatus } from '../lib/types.js';
 import {
   isDuplicate,
   recordAlert,
@@ -17,76 +17,132 @@ import {
 app.timer('pollAuditLogs', {
   schedule: '0 */5 * * * *', // Every 5 minutes
   handler: async (timer: Timer, context: InvocationContext): Promise<void> => {
-    if (timer.isPastDue) {
-      context.warn('Timer past due - execution delayed');
-    }
-
-    const now = new Date();
-    const defaultLookback = 60 * 60 * 1000; // 1 hour for new tenants
-    const maxLookback = 6 * 60 * 60 * 1000; // 6 hour max for stale tenants
-
-    // Preload rules and clients before processing
-    const rules = await getRules(context);
-    const allClients = await getClients();
-    // Filter out placeholder client
-    const clients = allClients.filter((c) => c.tenantId !== PLACEHOLDER_TENANT_ID);
-    context.log(`Processing ${clients.length} clients against ${rules.length} rules`);
-
-    const allAlerts: Alert[] = [];
+    const startTime = new Date();
+    let runStatus: RunStatus = 'success';
+    let errorMessage: string | undefined;
+    let clientsChecked = 0;
     let totalEvents = 0;
+    let totalAlerts = 0;
 
-    // Process each client sequentially to avoid rate limiting
-    for (const client of clients) {
-      // Calculate time window:
-      // - New tenants (no lastPoll): use default 1 hour lookback
-      // - Existing tenants: use time since lastPoll, capped at 6 hours max
-      let since: Date;
-      if (client.lastPoll) {
-        const lastPollTime = new Date(client.lastPoll);
-        const maxLookbackTime = new Date(now.getTime() - maxLookback);
-        since = lastPollTime > maxLookbackTime ? lastPollTime : maxLookbackTime;
-      } else {
-        since = new Date(now.getTime() - defaultLookback);
-      }
-      context.log(`Processing ${client.name}`);
-
-      try {
-        const { alerts, eventCount } = await processClient(client, rules, since, context);
-        allAlerts.push(...alerts);
-        totalEvents += eventCount;
-
-        // Update status on success
-        await updateClientStatus(client.tenantId, 'success');
-      } catch (error) {
-        const { status, message } = parseClientError(error);
-        context.error(`Failed to process client ${client.name}: ${message}`);
-        await updateClientStatus(client.tenantId, status, message);
-      }
-    }
-
-    if (allAlerts.length > 0) {
-      try {
-        await writeAlerts(allAlerts, context);
-      } catch (error) {
-        context.error('Failed to write alerts to Log Analytics:', error);
-      }
-
-      // Send Teams webhook notifications
-      try {
-        await sendTeamsAlerts(allAlerts, context);
-      } catch (error) {
-        context.error('Failed to send Teams notification:', error);
-      }
-    }
-
-    // Clean up expired dedup and notification state entries
     try {
-      await cleanupExpiredEntries();
-    } catch (error) {
-      context.error('Failed to cleanup expired state entries:', error);
-    }
+      if (timer.isPastDue) {
+        context.warn('Timer past due - execution delayed');
+      }
 
-    context.log(`Complete: ${totalEvents} events, ${allAlerts.length} alerts, ${clients.length} clients`);
+      const now = new Date();
+      const defaultLookback = 60 * 60 * 1000; // 1 hour for new tenants
+      const maxLookback = 6 * 60 * 60 * 1000; // 6 hour max for stale tenants
+
+      // Preload rules and clients before processing
+      const rules = await getRules(context);
+      const allClients = await getClients();
+      // Filter out placeholder client
+      const clients = allClients.filter((c) => c.tenantId !== PLACEHOLDER_TENANT_ID);
+      context.log(`Processing ${clients.length} clients against ${rules.length} rules`);
+
+      const allAlerts: Alert[] = [];
+      let clientErrors = 0;
+
+      // Process each client sequentially to avoid rate limiting
+      for (const client of clients) {
+        clientsChecked++;
+
+        // Calculate time window:
+        // - New tenants (no lastPoll): use default 1 hour lookback
+        // - Existing tenants: use time since lastPoll, capped at 6 hours max
+        let since: Date;
+        if (client.lastPoll) {
+          const lastPollTime = new Date(client.lastPoll);
+          const maxLookbackTime = new Date(now.getTime() - maxLookback);
+          since = lastPollTime > maxLookbackTime ? lastPollTime : maxLookbackTime;
+        } else {
+          since = new Date(now.getTime() - defaultLookback);
+        }
+        context.log(`Processing ${client.name}`);
+
+        try {
+          const { alerts, eventCount } = await processClient(client, rules, since, context);
+          allAlerts.push(...alerts);
+          totalEvents += eventCount;
+
+          // Update status on success
+          await updateClientStatus(client.tenantId, 'success');
+        } catch (error) {
+          clientErrors++;
+          const { status, message } = parseClientError(error);
+          context.error(`Failed to process client ${client.name}: ${message}`);
+          await updateClientStatus(client.tenantId, status, message);
+        }
+      }
+
+      totalAlerts = allAlerts.length;
+
+      // Set run status based on client errors
+      if (clientErrors > 0 && clientErrors < clients.length) {
+        runStatus = 'partial';
+        errorMessage = `${clientErrors} of ${clients.length} clients failed`;
+      } else if (clientErrors === clients.length && clients.length > 0) {
+        runStatus = 'error';
+        errorMessage = 'All clients failed';
+      }
+
+      if (allAlerts.length > 0) {
+        try {
+          await writeAlerts(allAlerts, context);
+        } catch (error) {
+          context.error('Failed to write alerts to Log Analytics:', error);
+        }
+
+        // Send Teams webhook notifications
+        try {
+          await sendTeamsAlerts(allAlerts, context);
+        } catch (error) {
+          context.error('Failed to send Teams notification:', error);
+        }
+      }
+
+      // Clean up expired dedup and notification state entries
+      try {
+        await cleanupExpiredEntries();
+      } catch (error) {
+        context.error('Failed to cleanup expired state entries:', error);
+      }
+
+      context.log(`Complete: ${totalEvents} events, ${allAlerts.length} alerts, ${clients.length} clients`);
+    } catch (error) {
+      // Catch any unexpected errors at the top level
+      runStatus = 'error';
+      errorMessage = error instanceof Error ? error.message : String(error);
+      context.error('Unexpected error in pollAuditLogs:', error);
+    } finally {
+      const endTime = new Date();
+
+      // Log the run to history
+      try {
+        await logRun({
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+          durationMs: endTime.getTime() - startTime.getTime(),
+          clientsChecked,
+          eventsProcessed: totalEvents,
+          alertsGenerated: totalAlerts,
+          status: runStatus,
+          errorMessage,
+        });
+      } catch (error) {
+        context.error('Failed to log run history:', error);
+      }
+
+      // Clean up old run history entries (older than 30 days)
+      try {
+        const deleted = await cleanupOldRuns(30);
+        if (deleted > 0) {
+          context.log(`Cleaned up ${deleted} old run history entries`);
+        }
+      } catch (error) {
+        context.error('Failed to cleanup old run history:', error);
+      }
+    }
   },
 });
 

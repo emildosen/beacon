@@ -3,7 +3,7 @@ import { join, dirname, relative } from 'path';
 import { fileURLToPath } from 'url';
 import { TableClient, TableServiceClient } from '@azure/data-tables';
 import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
-import { Rule, Client, AlertsConfig, Severity, ClientStatus } from './types.js';
+import { Rule, Client, AlertsConfig, Severity, ClientStatus, RunHistoryEntry, RunStatus } from './types.js';
 
 // Get the project root directory
 const __filename = fileURLToPath(import.meta.url);
@@ -14,11 +14,13 @@ const rulesDir = join(projectRoot, 'rules');
 // Table and container names
 const CLIENTS_TABLE = 'Clients';
 const ALERTS_TABLE = 'AlertsConfig';
+const RUN_HISTORY_TABLE = 'RunHistory';
 const CONFIG_CONTAINER = 'config';
 
 // Lazy-initialized clients
 let clientsTableClient: TableClient | null = null;
 let alertsTableClient: TableClient | null = null;
+let runHistoryTableClient: TableClient | null = null;
 let configContainerClient: ContainerClient | null = null;
 let rulesSynced = false;
 
@@ -52,7 +54,7 @@ export const PLACEHOLDER_TENANT_ID = '00000000-0000-0000-0000-000000000000';
  * Initialize table clients and create tables if they don't exist
  */
 async function ensureTablesExist(): Promise<void> {
-  if (clientsTableClient && alertsTableClient) return;
+  if (clientsTableClient && alertsTableClient && runHistoryTableClient) return;
 
   const connStr = getConnectionString();
   const allowInsecureConnection = connStr.includes('127.0.0.1') || connStr.includes('UseDevelopmentStorage');
@@ -72,8 +74,16 @@ async function ensureTablesExist(): Promise<void> {
     if ((e as { statusCode?: number }).statusCode !== 409) throw e;
   }
 
+  // Create RunHistory table if it doesn't exist
+  try {
+    await serviceClient.createTable(RUN_HISTORY_TABLE);
+  } catch (e: unknown) {
+    if ((e as { statusCode?: number }).statusCode !== 409) throw e;
+  }
+
   clientsTableClient = TableClient.fromConnectionString(connStr, CLIENTS_TABLE, { allowInsecureConnection });
   alertsTableClient = TableClient.fromConnectionString(connStr, ALERTS_TABLE, { allowInsecureConnection });
+  runHistoryTableClient = TableClient.fromConnectionString(connStr, RUN_HISTORY_TABLE, { allowInsecureConnection });
 
   // Seed placeholder data if tables are empty (for Azure Storage Explorer column visibility)
   await seedPlaceholderDataIfEmpty();
@@ -395,4 +405,193 @@ export async function getAlertsConfig(): Promise<AlertsConfig> {
     }
     throw e;
   }
+}
+
+/**
+ * Add a new client to Table Storage
+ */
+export async function addClient(tenantId: string, name: string): Promise<void> {
+  await ensureTablesExist();
+
+  await clientsTableClient!.upsertEntity(
+    {
+      partitionKey: 'client',
+      rowKey: tenantId,
+      name,
+      lastPoll: null,
+      status: '',
+      statusMessage: '',
+    },
+    'Replace'
+  );
+}
+
+/**
+ * Update an existing client's name
+ * Returns true if updated, false if not found
+ */
+export async function updateClient(tenantId: string, name: string): Promise<boolean> {
+  await ensureTablesExist();
+
+  try {
+    const existing = await clientsTableClient!.getEntity<{
+      lastPoll?: Date;
+      status?: string;
+      statusMessage?: string;
+    }>('client', tenantId);
+
+    await clientsTableClient!.upsertEntity(
+      {
+        partitionKey: 'client',
+        rowKey: tenantId,
+        name,
+        lastPoll: existing.lastPoll || null,
+        status: existing.status || '',
+        statusMessage: existing.statusMessage || '',
+      },
+      'Replace'
+    );
+    return true;
+  } catch (e: unknown) {
+    if ((e as { statusCode?: number }).statusCode === 404) {
+      return false;
+    }
+    throw e;
+  }
+}
+
+/**
+ * Delete a client from Table Storage
+ * Returns true if deleted, false if not found
+ */
+export async function deleteClient(tenantId: string): Promise<boolean> {
+  await ensureTablesExist();
+
+  try {
+    await clientsTableClient!.deleteEntity('client', tenantId);
+    return true;
+  } catch (e: unknown) {
+    if ((e as { statusCode?: number }).statusCode === 404) {
+      return false;
+    }
+    throw e;
+  }
+}
+
+/**
+ * Update alerts config in Table Storage
+ */
+export async function updateAlertsConfig(config: AlertsConfig): Promise<void> {
+  await ensureTablesExist();
+
+  await alertsTableClient!.upsertEntity(
+    {
+      partitionKey: 'config',
+      rowKey: 'alerts',
+      webhookUrl: config.webhookUrl,
+      minimumSeverity: config.minimumSeverity,
+      enabled: config.enabled,
+    },
+    'Replace'
+  );
+}
+
+/**
+ * Generate inverted timestamp for newest-first ordering in Table Storage
+ */
+function invertedTimestamp(date: Date): string {
+  const maxTicks = 9999999999999;
+  const ticks = date.getTime();
+  return (maxTicks - ticks).toString().padStart(13, '0');
+}
+
+/**
+ * Log a run to the RunHistory table
+ */
+export async function logRun(run: RunHistoryEntry): Promise<void> {
+  await ensureTablesExist();
+
+  const rowKey = invertedTimestamp(new Date(run.startTime));
+
+  await runHistoryTableClient!.upsertEntity(
+    {
+      partitionKey: 'run',
+      rowKey,
+      startTime: new Date(run.startTime),
+      endTime: new Date(run.endTime),
+      durationMs: run.durationMs,
+      clientsChecked: run.clientsChecked,
+      eventsProcessed: run.eventsProcessed,
+      alertsGenerated: run.alertsGenerated,
+      status: run.status,
+      errorMessage: run.errorMessage || '',
+    },
+    'Replace'
+  );
+}
+
+/**
+ * Get run history from Table Storage (newest first)
+ */
+export async function getRunHistory(limit: number = 50): Promise<RunHistoryEntry[]> {
+  await ensureTablesExist();
+
+  const runs: RunHistoryEntry[] = [];
+  let count = 0;
+
+  // Entities are returned in ascending rowKey order, but inverted timestamp means newest first
+  for await (const entity of runHistoryTableClient!.listEntities<{
+    startTime: Date;
+    endTime: Date;
+    durationMs: number;
+    clientsChecked: number;
+    eventsProcessed: number;
+    alertsGenerated: number;
+    status: string;
+    errorMessage?: string;
+  }>()) {
+    if (count >= limit) break;
+
+    runs.push({
+      startTime: entity.startTime.toISOString(),
+      endTime: entity.endTime.toISOString(),
+      durationMs: entity.durationMs,
+      clientsChecked: entity.clientsChecked,
+      eventsProcessed: entity.eventsProcessed,
+      alertsGenerated: entity.alertsGenerated,
+      status: entity.status as RunStatus,
+      errorMessage: entity.errorMessage || undefined,
+    });
+    count++;
+  }
+
+  return runs;
+}
+
+/**
+ * Clean up run history entries older than specified days
+ * Returns the number of entries deleted
+ */
+export async function cleanupOldRuns(olderThanDays: number): Promise<number> {
+  await ensureTablesExist();
+
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+
+  let deleted = 0;
+
+  for await (const entity of runHistoryTableClient!.listEntities<{
+    startTime: Date;
+  }>()) {
+    if (entity.startTime < cutoffDate) {
+      try {
+        await runHistoryTableClient!.deleteEntity(entity.partitionKey!, entity.rowKey!);
+        deleted++;
+      } catch {
+        // Ignore deletion errors, continue with next
+      }
+    }
+  }
+
+  return deleted;
 }

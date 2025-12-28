@@ -200,6 +200,21 @@ export interface AlertsConfig {
   enabled: boolean;
 }
 
+// Run history status
+export type RunStatus = 'success' | 'partial' | 'error';
+
+// Run history entry
+export interface RunHistoryEntry {
+  startTime: string; // ISO timestamp
+  endTime: string; // ISO timestamp
+  durationMs: number;
+  clientsChecked: number;
+  eventsProcessed: number;
+  alertsGenerated: number;
+  status: RunStatus;
+  errorMessage?: string;
+}
+
 // Severity level ordering for comparison
 export const SEVERITY_ORDER: Record<Severity, number> = {
   Low: 1,

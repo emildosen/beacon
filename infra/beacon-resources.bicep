@@ -43,6 +43,15 @@ param dataCollectionRuleName string = ''
 @description('Application Insights name (leave empty for auto-generated)')
 param appInsightsName string = ''
 
+@description('Static Web App name (leave empty for auto-generated)')
+param staticWebAppName string = ''
+
+@description('Admin portal app registration name (leave empty for auto-generated)')
+param adminAppName string = ''
+
+@description('Name of the security group for admin portal access')
+param adminGroupName string = 'Beacon Admins'
+
 // Variables
 var skuMap = {
   Y1: { name: 'Y1', tier: 'Dynamic' }
@@ -64,6 +73,9 @@ var _dataCollectionEndpointName = !empty(dataCollectionEndpointName) ? dataColle
 var _dataCollectionRuleName = !empty(dataCollectionRuleName) ? dataCollectionRuleName : 'dcr-${appNameLower}'
 var _customTableName = 'Beacon_Alerts'
 var _appInsightsName = !empty(appInsightsName) ? appInsightsName : 'ai-${appNameLower}'
+var _staticWebAppName = !empty(staticWebAppName) ? staticWebAppName : 'swa-${appNameLower}-${take(uniqueSuffix, 6)}'
+var _adminAppName = !empty(adminAppName) ? adminAppName : '${appName} Admin'
+var _adminGroupUniqueName = replace(toLower(adminGroupName), ' ', '-')
 
 // Multi-tenant App Registration
 resource appRegistration 'Microsoft.Graph/applications@v1.0' = {
@@ -98,6 +110,84 @@ resource appRegistration 'Microsoft.Graph/applications@v1.0' = {
 // Service Principal for the App Registration
 resource servicePrincipal 'Microsoft.Graph/servicePrincipals@v1.0' = {
   appId: appRegistration.appId
+}
+
+// Security Group for admin portal access
+resource adminGroup 'Microsoft.Graph/groups@v1.0' = {
+  displayName: adminGroupName
+  uniqueName: _adminGroupUniqueName
+  mailEnabled: false
+  mailNickname: _adminGroupUniqueName
+  securityEnabled: true
+  description: 'Members of this group can access the ${appName} admin portal to manage clients and alert configuration'
+}
+
+// Static Web App for admin portal
+resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
+  name: _staticWebAppName
+  location: location
+  sku: {
+    name: 'Free'
+    tier: 'Free'
+  }
+  properties: {
+    repositoryUrl: 'https://github.com/emildosen/beacon'
+    branch: 'main'
+    buildProperties: {
+      appLocation: '/admin'
+      outputLocation: 'dist'
+      skipGithubActionWorkflowGeneration: true
+    }
+  }
+}
+
+// SWA app settings (available as env vars during Oryx build)
+resource staticWebAppSettings 'Microsoft.Web/staticSites/config@2023-12-01' = {
+  parent: staticWebApp
+  name: 'appsettings'
+  properties: {
+    VITE_CLIENT_ID: spaAppRegistration.appId
+    VITE_TENANT_ID: subscription().tenantId
+    VITE_API_URL: 'https://${functionApp.properties.defaultHostName}'
+  }
+}
+
+// SPA App Registration for admin portal (single-tenant)
+resource spaAppRegistration 'Microsoft.Graph/applications@v1.0' = {
+  displayName: _adminAppName
+  uniqueName: '${appNameLower}-admin-spa'
+  signInAudience: 'AzureADMyOrg'
+
+  spa: {
+    redirectUris: [
+      'http://localhost:4280'
+      'http://localhost:5173'
+      'https://${staticWebApp.properties.defaultHostname}'
+    ]
+  }
+
+  // Include groups claim in tokens for authorization
+  optionalClaims: {
+    accessToken: [
+      {
+        name: 'groups'
+        essential: false
+        additionalProperties: []
+      }
+    ]
+    idToken: [
+      {
+        name: 'groups'
+        essential: false
+        additionalProperties: []
+      }
+    ]
+  }
+}
+
+// Service Principal for SPA App Registration
+resource spaServicePrincipal 'Microsoft.Graph/servicePrincipals@v1.0' = {
+  appId: spaAppRegistration.appId
 }
 
 // Storage Account (required for Azure Functions)
@@ -263,6 +353,9 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
       cors: {
         allowedOrigins: [
           'https://portal.azure.com'
+          'http://localhost:4280'
+          'http://localhost:5173'
+          'https://${staticWebApp.properties.defaultHostname}'
         ]
       }
       appSettings: [
@@ -338,6 +431,15 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: appInsights.properties.ConnectionString
         }
+        // Admin portal authentication
+        {
+          name: 'SPA_CLIENT_ID'
+          value: spaAppRegistration.appId
+        }
+        {
+          name: 'ADMIN_GROUP_ID'
+          value: adminGroup.id
+        }
       ]
     }
     httpsOnly: true
@@ -384,3 +486,9 @@ output dataCollectionRuleName string = dataCollectionRule.name
 output customTableName string = '${_customTableName}_CL'
 output appInsightsName string = appInsights.name
 output appInsightsConnectionString string = appInsights.properties.ConnectionString
+output staticWebAppName string = staticWebApp.name
+output staticWebAppUrl string = 'https://${staticWebApp.properties.defaultHostname}'
+output spaAppRegistrationAppId string = spaAppRegistration.appId
+output spaAdminConsentUrl string = '${environment().authentication.loginEndpoint}${subscription().tenantId}/adminconsent?client_id=${spaAppRegistration.appId}'
+output adminGroupId string = adminGroup.id
+output adminGroupName string = adminGroup.displayName

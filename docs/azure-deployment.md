@@ -20,12 +20,16 @@ The deployment template creates:
 | Data Collection Rule | Routes alerts to the custom table |
 | Custom Table (Beacon_Alerts_CL) | Schema for alert data |
 | Role Assignment | Allows Function App to write to Log Analytics |
+| Static Web App | Admin portal for managing clients and configuration |
+| Admin App Registration | Authentication for the admin portal (single-tenant) |
+| Security Group | Controls access to the admin portal ("Beacon Admins") |
 
 ## Prerequisites
 
 Before you begin, you'll need:
 
 - **Azure subscription** with permission to create resources
+- **Admin role in Entra ID** with permission to create app registrations and groups
 - **Azure CLI** installed ([Download here](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli))
 - **Bicep CLI** installed (run `az bicep install` if not already installed)
 
@@ -84,20 +88,23 @@ You can customise the deployment with these parameters:
 | `appName` | `Beacon` | Name used for the app registration and resources |
 | `appPlanSku` | `B1` | Hosting plan tier (Y1, EP1, B1) |
 | `enableFederatedAuth` | `true` | Enable federated authentication for the Function App managed identity |
+| `adminGroupName` | `Beacon Admins` | Name of the security group for admin portal access |
 
 #### Resource Names
 
-Use these parameters to specify custom names for resources, useful when resources already exist or you need specific naming conventions. Leave empty to use auto-generated names. Default patterns use the `appName` parameter (shown below as `{app}`).
+Use these parameters to specify custom names for resources, useful when resources already exist or you need specific naming conventions. Leave empty to use auto-generated names. Default patterns use the `appName` parameter (shown below as `{appName}`).
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `functionAppName` | `{app}-func-[6 random]` | Function App name |
-| `storageAccountName` | `{app}[10 random]` | Storage Account name |
-| `appServicePlanName` | `{app}-plan` | App Service Plan name |
-| `logAnalyticsWorkspaceName` | `law-{app}` | Log Analytics Workspace name |
-| `dataCollectionEndpointName` | `dce-{app}` | Data Collection Endpoint name |
-| `dataCollectionRuleName` | `dcr-{app}` | Data Collection Rule name |
-| `appInsightsName` | `ai-{app}` | Application Insights name |
+| `functionAppName` | `{appName}-func-[6 random]` | Function App name |
+| `storageAccountName` | `{appName}[10 random]` | Storage Account name |
+| `appServicePlanName` | `{appName}-plan` | App Service Plan name |
+| `logAnalyticsWorkspaceName` | `law-{appName}` | Log Analytics Workspace name |
+| `dataCollectionEndpointName` | `dce-{appName}` | Data Collection Endpoint name |
+| `dataCollectionRuleName` | `dcr-{appName}` | Data Collection Rule name |
+| `appInsightsName` | `ai-{appName}` | Application Insights name |
+| `staticWebAppName` | `swa-{appName}-[6 random]` | Static Web App name |
+| `adminAppName` | `{appName} Admin` | Admin portal app registration name |
 
 **Example with custom values:**
 
@@ -164,23 +171,34 @@ Outputs:
   resourceGroupName: rg-beacon
   storageAccountName: beaconxxxxxxxxxx
   appInsightsName: ai-beacon
+  staticWebAppName: swa-beacon-xxxxxx
+  staticWebAppUrl: https://xxx-xxx-xxxxxxxxx.azurestaticapps.net
+  spaAppRegistrationAppId: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  spaAdminConsentUrl: https://login.microsoftonline.com/.../adminconsent?client_id=...
+  adminGroupId: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  adminGroupName: Beacon Admins
 ```
 
-The `adminConsentUrl` is particularly important - you'll need it for onboarding client tenants.
+Key outputs:
+- `adminConsentUrl` - Use this to onboard client tenants
+- `staticWebAppUrl` - The admin portal URL
+- `adminGroupName` - Add users to this group to grant admin portal access
 
 ## Step 5: Grant Admin Consent
 
-The app registration is created with the required permissions, but admin consent must still be granted.
+The app registrations are created with the required permissions, but admin consent must still be granted.
 
-### For your own tenant
+### For the multi-tenant app (client monitoring)
 
-Not strictly necessary, only if you want to monitor your own tenant too.
+This grants permissions to access client M365 data.
+
+**For your own tenant** (optional, only if you want to monitor your own tenant):
 
 1. Open the `adminConsentUrl` from the deployment outputs
 2. Sign in with a Global Administrator account
 3. Review the permissions and click **Accept**
 
-### For client tenants
+**For client tenants:**
 
 For each client tenant you want to monitor:
 
@@ -192,8 +210,26 @@ For each client tenant you want to monitor:
 3. They sign in and accept the permissions
 
 ::: warning Expected Behaviour
-After granting consent, you'll see an error. This is expected. The app has no redirect URL configured, so the browser has nowhere to go. The consent itself was granted successfully.
+After granting consent, you'll see an error page. This is expected, the app has no redirect URL configured, so the browser has nowhere to go. The consent itself was granted successfully.
 :::
+
+### For the admin portal app
+
+This grants permissions for the admin portal authentication:
+
+1. Open the `spaAdminConsentUrl` from the deployment outputs
+2. Sign in with a Global Administrator account
+3. Review the permissions and click **Accept**
+
+## Step 6: Add Users to Admin Group
+
+Only users in the "Beacon Admins" security group can access the admin portal.
+
+1. Open the [Azure Portal](https://portal.azure.com)
+2. Navigate to **Microsoft Entra ID** → **Groups**
+3. Search for the group name from `adminGroupName` output (default: "Beacon Admins")
+4. Click on the group, then go to **Members** → **Add members**
+5. Add the users who should have admin access
 
 ## Verify Deployment
 
@@ -201,11 +237,23 @@ After granting consent, you'll see an error. This is expected. The app has no re
 2. Navigate to **Resource groups** → **rg-beacon** (or your custom name)
 3. Confirm all resources are present and healthy
 
-To check the Function App:
+### Check the Function App
 
 1. Open the Function App resource
 2. Go to **Functions** in the left menu
-3. You should see the `pollAuditLogs` function listed
+3. You should see the `pollAuditLogs` function listed, plus the admin API functions (`clients`, `alertsConfig`, `runs`)
+
+### Check the Admin Portal
+
+1. Open the `staticWebAppUrl` from the deployment outputs
+2. Sign in with a user who is a member of the admin group
+3. You should see the admin portal (initially a placeholder page)
+
+::: tip
+The admin portal auto-deploys from the GitHub repository. After the initial deployment, it may take a few minutes for the portal to be available.
+:::
+
+### Verify Alerts
 
 To verify alerts are being ingested (after the function has run):
 
@@ -253,6 +301,22 @@ If alerts aren't appearing in the `Beacon_Alerts_CL` table:
 2. Verify the function has run at least once (check **Monitor** in the function)
 3. Ensure admin consent was granted for client tenants
 
+### Admin portal shows "Access denied"
+
+If you can't access the admin portal:
+
+1. Verify you've granted admin consent for the SPA app (`spaAdminConsentUrl`)
+2. Confirm your user is a member of the admin group ("Beacon Admins")
+3. Sign out and sign back in to refresh your token
+
+### Admin portal not loading
+
+If the Static Web App shows an error:
+
+1. Check the Static Web App deployment status in Azure Portal → Static Web Apps → Deployment history
+2. The GitHub integration may need to sync - wait a few minutes after initial deployment
+3. Verify the repository is accessible at https://github.com/emildosen/beacon
+
 ## Updating Beacon
 
 To update to the latest version:
@@ -270,5 +334,9 @@ az group delete --name rg-beacon --yes
 ```
 
 ::: danger Warning
-This deletes all resources in the resource group, including any data in the storage account. The app registration is **not** deleted automatically. Remove it manually from Entra ID if needed.
+This deletes all resources in the resource group, including any data in the storage account. The following are **not** deleted automatically and must be removed manually from Entra ID if needed:
+
+- App registration (multi-tenant, for client monitoring)
+- Admin app registration (single-tenant, for admin portal)
+- Security group ("Beacon Admins")
 :::
