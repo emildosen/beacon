@@ -15,6 +15,7 @@ The deployment template creates:
 | Storage Account | Required by Azure Functions and alert deduplication |
 | Federated Credential | Secure authentication (no secrets needed) |
 | Log Analytics Workspace | Stores alerts for querying and dashboards |
+| Application Insights | Function App logging and monitoring |
 | Data Collection Endpoint | Ingestion endpoint for Log Analytics |
 | Data Collection Rule | Routes alerts to the custom table |
 | Custom Table (Beacon_Alerts_CL) | Schema for alert data |
@@ -75,11 +76,28 @@ For a full list, run: `az account list-locations -o table`
 
 You can customise the deployment with these parameters:
 
+#### Basic Parameters
+
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `resourceGroupName` | `rg-beacon` | Name for the resource group |
 | `appName` | `Beacon` | Name used for the app registration and resources |
 | `appPlanSku` | `B1` | Hosting plan tier (Y1, EP1, B1) |
+| `enableFederatedAuth` | `true` | Enable federated authentication for the Function App managed identity |
+
+#### Resource Names
+
+Use these parameters to specify custom names for resources, useful when resources already exist or you need specific naming conventions. Leave empty to use auto-generated names. Default patterns use the `appName` parameter (shown below as `{app}`).
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `functionAppName` | `{app}-func-[6 random]` | Function App name |
+| `storageAccountName` | `{app}[10 random]` | Storage Account name |
+| `appServicePlanName` | `{app}-plan` | App Service Plan name |
+| `logAnalyticsWorkspaceName` | `law-{app}` | Log Analytics Workspace name |
+| `dataCollectionEndpointName` | `dce-{app}` | Data Collection Endpoint name |
+| `dataCollectionRuleName` | `dcr-{app}` | Data Collection Rule name |
+| `appInsightsName` | `ai-{app}` | Application Insights name |
 
 **Example with custom values:**
 
@@ -90,6 +108,28 @@ az deployment sub create \
   --parameters \
     resourceGroupName=rg-beacon-prod \
     appName=BeaconProd
+```
+
+**Example with custom resource names:**
+
+```bash
+az deployment sub create \
+  --location australiaeast \
+  --template-file beacon.bicep \
+  --parameters \
+    resourceGroupName=rg-beacon-prod \
+    functionAppName=my-existing-func \
+    storageAccountName=myexistingstorage
+```
+
+**Example disabling federated auth (for client secret authentication):**
+
+```bash
+az deployment sub create \
+  --location australiaeast \
+  --template-file beacon.bicep \
+  --parameters \
+    enableFederatedAuth=false
 ```
 
 ### Hosting Plan Options
@@ -123,6 +163,7 @@ Outputs:
   logAnalyticsWorkspaceName: law-beacon
   resourceGroupName: rg-beacon
   storageAccountName: beaconxxxxxxxxxx
+  appInsightsName: ai-beacon
 ```
 
 The `adminConsentUrl` is particularly important - you'll need it for onboarding client tenants.

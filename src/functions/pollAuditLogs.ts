@@ -229,6 +229,10 @@ function parseClientError(error: unknown): { status: ClientStatus; message: stri
     return { status: 'appNotConsented', message: 'App registration not consented in tenant' };
   }
 
+  if (errorStr.includes('AADSTS7000229') || errorStr.includes('missing service principal')) {
+    return { status: 'appNotConsented', message: 'Service principal missing - admin must grant consent' };
+  }
+
   if (errorStr.includes('AADSTS65001') || errorStr.includes('consent')) {
     return { status: 'appNotConsented', message: 'Admin consent required' };
   }

@@ -52,7 +52,8 @@ export async function getAuditEvents(
     } else {
       context.error(`[${tenantId}] Management API: Failed to get token:`, error);
     }
-    return [];
+    // Re-throw auth errors so client status gets updated correctly
+    throw error;
   }
 
   // Ensure subscriptions are active for all content types

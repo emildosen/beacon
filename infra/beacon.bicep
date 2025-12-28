@@ -21,6 +21,31 @@ param appName string = 'Beacon'
 ])
 param appPlanSku string = 'B1'
 
+@description('Enable federated authentication for the Function App managed identity')
+param enableFederatedAuth bool = true
+
+// Optional name parameters (leave empty to use auto-generated names)
+@description('Function App name (leave empty for auto-generated)')
+param functionAppName string = ''
+
+@description('Storage Account name (leave empty for auto-generated)')
+param storageAccountName string = ''
+
+@description('App Service Plan name (leave empty for auto-generated)')
+param appServicePlanName string = ''
+
+@description('Log Analytics Workspace name (leave empty for auto-generated)')
+param logAnalyticsWorkspaceName string = ''
+
+@description('Data Collection Endpoint name (leave empty for auto-generated)')
+param dataCollectionEndpointName string = ''
+
+@description('Data Collection Rule name (leave empty for auto-generated)')
+param dataCollectionRuleName string = ''
+
+@description('Application Insights name (leave empty for auto-generated)')
+param appInsightsName string = ''
+
 // Resource Group
 resource rg 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   name: resourceGroupName
@@ -35,6 +60,14 @@ module beaconResources 'beacon-resources.bicep' = {
     location: location
     appName: appName
     appPlanSku: appPlanSku
+    enableFederatedAuth: enableFederatedAuth
+    functionAppName: functionAppName
+    storageAccountName: storageAccountName
+    appServicePlanName: appServicePlanName
+    logAnalyticsWorkspaceName: logAnalyticsWorkspaceName
+    dataCollectionEndpointName: dataCollectionEndpointName
+    dataCollectionRuleName: dataCollectionRuleName
+    appInsightsName: appInsightsName
   }
 }
 

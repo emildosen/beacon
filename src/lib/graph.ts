@@ -47,6 +47,10 @@ export async function getSignIns(
 
   } catch (error) {
     context.error('Error fetching sign-ins from Graph API:', error);
+    // Re-throw auth errors so client status gets updated correctly
+    if (isAuthError(error)) {
+      throw error;
+    }
   }
 
   return signIns;
@@ -83,7 +87,26 @@ export async function getSecurityAlerts(
 
   } catch (error) {
     context.error('Error fetching security alerts from Graph API:', error);
+    // Re-throw auth errors so client status gets updated correctly
+    if (isAuthError(error)) {
+      throw error;
+    }
   }
 
   return alerts;
+}
+
+/**
+ * Check if an error is an authentication/authorization error that should
+ * propagate to update client status (vs transient errors that can be ignored)
+ */
+function isAuthError(error: unknown): boolean {
+  const errorStr = String(error);
+  return (
+    errorStr.includes('AADSTS') || // Any Azure AD error
+    errorStr.includes('AuthenticationRequired') ||
+    errorStr.includes('invalid_client') ||
+    errorStr.includes('Forbidden') ||
+    errorStr.includes('Authorization_RequestDenied')
+  );
 }

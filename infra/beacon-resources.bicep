@@ -18,6 +18,31 @@ param appName string = 'Beacon'
 ])
 param appPlanSku string = 'B1'
 
+@description('Enable federated authentication for the Function App managed identity')
+param enableFederatedAuth bool = true
+
+// Optional name parameters (leave empty to use auto-generated names)
+@description('Function App name (leave empty for auto-generated)')
+param functionAppName string = ''
+
+@description('Storage Account name (leave empty for auto-generated)')
+param storageAccountName string = ''
+
+@description('App Service Plan name (leave empty for auto-generated)')
+param appServicePlanName string = ''
+
+@description('Log Analytics Workspace name (leave empty for auto-generated)')
+param logAnalyticsWorkspaceName string = ''
+
+@description('Data Collection Endpoint name (leave empty for auto-generated)')
+param dataCollectionEndpointName string = ''
+
+@description('Data Collection Rule name (leave empty for auto-generated)')
+param dataCollectionRuleName string = ''
+
+@description('Application Insights name (leave empty for auto-generated)')
+param appInsightsName string = ''
+
 // Variables
 var skuMap = {
   Y1: { name: 'Y1', tier: 'Dynamic' }
@@ -28,20 +53,22 @@ var selectedSku = skuMap[appPlanSku]
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var appNameLower = toLower(appName)
 var cleanName = replace(appNameLower, '-', '')
-var storageAccountName = '${take(cleanName, 10)}${take(uniqueSuffix, 10)}'
-var functionAppName = '${appNameLower}-func-${take(uniqueSuffix, 6)}'
-var appServicePlanName = '${appNameLower}-plan'
-var appRegistrationName = appName
-var logAnalyticsWorkspaceName = 'law-${appNameLower}'
-var dataCollectionEndpointName = 'dce-${appNameLower}'
-var dataCollectionRuleName = 'dcr-${appNameLower}-alerts'
-var customTableName = 'Beacon_Alerts'
-var appInsightsName = 'ai-${appNameLower}'
+
+// Use provided names if specified, otherwise use auto-generated names
+var _storageAccountName = !empty(storageAccountName) ? storageAccountName : '${take(cleanName, 10)}${take(uniqueSuffix, 10)}'
+var _functionAppName = !empty(functionAppName) ? functionAppName : '${appNameLower}-func-${take(uniqueSuffix, 6)}'
+var _appServicePlanName = !empty(appServicePlanName) ? appServicePlanName : '${appNameLower}-plan'
+var _appRegistrationName = appName
+var _logAnalyticsWorkspaceName = !empty(logAnalyticsWorkspaceName) ? logAnalyticsWorkspaceName : 'law-${appNameLower}'
+var _dataCollectionEndpointName = !empty(dataCollectionEndpointName) ? dataCollectionEndpointName : 'dce-${appNameLower}'
+var _dataCollectionRuleName = !empty(dataCollectionRuleName) ? dataCollectionRuleName : 'dcr-${appNameLower}'
+var _customTableName = 'Beacon_Alerts'
+var _appInsightsName = !empty(appInsightsName) ? appInsightsName : 'ai-${appNameLower}'
 
 // Multi-tenant App Registration
 resource appRegistration 'Microsoft.Graph/applications@v1.0' = {
-  displayName: appRegistrationName
-  uniqueName: appRegistrationName
+  displayName: _appRegistrationName
+  uniqueName: _appRegistrationName
   signInAudience: 'AzureADMultipleOrgs'
 
   // API permissions (admin consent still required manually)
@@ -75,7 +102,7 @@ resource servicePrincipal 'Microsoft.Graph/servicePrincipals@v1.0' = {
 
 // Storage Account (required for Azure Functions)
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
-  name: storageAccountName
+  name: _storageAccountName
   location: location
   sku: {
     name: 'Standard_LRS'
@@ -105,7 +132,7 @@ resource configContainer 'Microsoft.Storage/storageAccounts/blobServices/contain
 
 // Log Analytics Workspace
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
-  name: logAnalyticsWorkspaceName
+  name: _logAnalyticsWorkspaceName
   location: location
   properties: {
     sku: {
@@ -117,7 +144,7 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09
 
 // Application Insights (workspace-based)
 resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
-  name: appInsightsName
+  name: _appInsightsName
   location: location
   kind: 'web'
   properties: {
@@ -129,7 +156,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 
 // Data Collection Endpoint
 resource dataCollectionEndpoint 'Microsoft.Insights/dataCollectionEndpoints@2023-03-11' = {
-  name: dataCollectionEndpointName
+  name: _dataCollectionEndpointName
   location: location
   properties: {
     networkAcls: {
@@ -141,10 +168,10 @@ resource dataCollectionEndpoint 'Microsoft.Insights/dataCollectionEndpoints@2023
 // Custom Table in Log Analytics
 resource customTable 'Microsoft.OperationalInsights/workspaces/tables@2022-10-01' = {
   parent: logAnalyticsWorkspace
-  name: '${customTableName}_CL'
+  name: '${_customTableName}_CL'
   properties: {
     schema: {
-      name: '${customTableName}_CL'
+      name: '${_customTableName}_CL'
       columns: [
         { name: 'TimeGenerated', type: 'datetime', description: 'When the source event occurred' }
         { name: 'TimeProcessed', type: 'datetime', description: 'When Beacon processed the alert' }
@@ -166,12 +193,12 @@ resource customTable 'Microsoft.OperationalInsights/workspaces/tables@2022-10-01
 
 // Data Collection Rule
 resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
-  name: dataCollectionRuleName
+  name: _dataCollectionRuleName
   location: location
   properties: {
     dataCollectionEndpointId: dataCollectionEndpoint.id
     streamDeclarations: {
-      'Custom-${customTableName}_CL': {
+      'Custom-${_customTableName}_CL': {
         columns: [
           { name: 'TimeGenerated', type: 'datetime' }
           { name: 'TimeProcessed', type: 'datetime' }
@@ -198,10 +225,10 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' 
     }
     dataFlows: [
       {
-        streams: ['Custom-${customTableName}_CL']
+        streams: ['Custom-${_customTableName}_CL']
         destinations: ['law-destination']
         transformKql: 'source'
-        outputStream: 'Custom-${customTableName}_CL'
+        outputStream: 'Custom-${_customTableName}_CL'
       }
     ]
   }
@@ -210,23 +237,22 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' 
 
 // App Service Plan
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
-  name: appServicePlanName
+  name: _appServicePlanName
   location: location
   sku: {
     name: selectedSku.name
     tier: selectedSku.tier
   }
-  kind: 'linux'
   properties: {
-    reserved: true // Linux
+    reserved: false
   }
 }
 
 // Function App with System-Assigned Managed Identity
 resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
-  name: functionAppName
+  name: _functionAppName
   location: location
-  kind: 'functionapp,linux'
+  kind: 'functionapp'
   identity: {
     type: 'SystemAssigned'
   }
@@ -234,7 +260,6 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
     serverFarmId: appServicePlan.id
     siteConfig: {
       alwaysOn: appPlanSku != 'Y1'
-      linuxFxVersion: 'Node|22'
       cors: {
         allowedOrigins: [
           'https://portal.azure.com'
@@ -251,7 +276,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         }
         {
           name: 'WEBSITE_CONTENTSHARE'
-          value: toLower(functionAppName)
+          value: toLower(_functionAppName)
         }
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'
@@ -260,6 +285,10 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'FUNCTIONS_WORKER_RUNTIME'
           value: 'node'
+        }
+        {
+          name: 'WEBSITE_NODE_DEFAULT_VERSION'
+          value: '~22'
         }
         // Azure SDK environment variables for managed identity with federated credential
         {
@@ -290,7 +319,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         }
         {
           name: 'LOG_ANALYTICS_STREAM'
-          value: 'Custom-${customTableName}_CL'
+          value: 'Custom-${_customTableName}_CL'
         }
         // Storage for alert deduplication
         {
@@ -316,14 +345,14 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
 }
 
 // Federated Identity Credential - nested inside app registration reference
-resource federatedCredential 'Microsoft.Graph/applications/federatedIdentityCredentials@v1.0' = {
+resource federatedCredential 'Microsoft.Graph/applications/federatedIdentityCredentials@v1.0' = if (enableFederatedAuth) {
   name: '${appRegistration.uniqueName}/FuncAppMSI'
   audiences: [
     'api://AzureADTokenExchange'
   ]
   issuer: '${environment().authentication.loginEndpoint}${subscription().tenantId}/v2.0'
   subject: functionApp.identity.principalId
-  description: 'Federated credential for ${functionAppName} managed identity'
+  description: 'Federated credential for ${_functionAppName} managed identity'
 }
 
 
@@ -352,6 +381,6 @@ output logAnalyticsWorkspaceName string = logAnalyticsWorkspace.name
 output dataCollectionEndpointUrl string = dataCollectionEndpoint.properties.logsIngestion.endpoint
 output dataCollectionRuleId string = dataCollectionRule.properties.immutableId
 output dataCollectionRuleName string = dataCollectionRule.name
-output customTableName string = '${customTableName}_CL'
+output customTableName string = '${_customTableName}_CL'
 output appInsightsName string = appInsights.name
 output appInsightsConnectionString string = appInsights.properties.ConnectionString
