@@ -29,11 +29,15 @@ jobs:
 
       - name: Create deployment package
         run: |
-          # Install production dependencies only
+          # Remove all node_modules (including admin)
           rm -rf node_modules
-          npm ci --omit=dev
+          rm -rf src/admin/node_modules
+
+          # Install production dependencies only (no postinstall for admin)
+          npm ci --omit=dev --ignore-scripts
 
           # Create zip with built code and prod dependencies
+          # dist/ now includes both functions and admin UI
           zip -r beacon.zip dist node_modules rules host.json package.json
 
       - name: Create/Update Release

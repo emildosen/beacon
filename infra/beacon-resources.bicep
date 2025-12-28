@@ -43,9 +43,6 @@ param dataCollectionRuleName string = ''
 @description('Application Insights name (leave empty for auto-generated)')
 param appInsightsName string = ''
 
-@description('Static Web App name (leave empty for auto-generated)')
-param staticWebAppName string = ''
-
 @description('Admin portal app registration name (leave empty for auto-generated)')
 param adminAppName string = ''
 
@@ -73,7 +70,6 @@ var _dataCollectionEndpointName = !empty(dataCollectionEndpointName) ? dataColle
 var _dataCollectionRuleName = !empty(dataCollectionRuleName) ? dataCollectionRuleName : 'dcr-${appNameLower}'
 var _customTableName = 'Beacon_Alerts'
 var _appInsightsName = !empty(appInsightsName) ? appInsightsName : 'ai-${appNameLower}'
-var _staticWebAppName = !empty(staticWebAppName) ? staticWebAppName : 'swa-${appNameLower}-${take(uniqueSuffix, 6)}'
 var _adminAppName = !empty(adminAppName) ? adminAppName : '${appName} Admin'
 var _adminGroupUniqueName = replace(toLower(adminGroupName), ' ', '-')
 
@@ -122,36 +118,6 @@ resource adminGroup 'Microsoft.Graph/groups@v1.0' = {
   description: 'Members of this group can access the ${appName} admin portal to manage clients and alert configuration'
 }
 
-// Static Web App for admin portal
-resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
-  name: _staticWebAppName
-  location: location
-  sku: {
-    name: 'Free'
-    tier: 'Free'
-  }
-  properties: {
-    repositoryUrl: 'https://github.com/emildosen/beacon'
-    branch: 'main'
-    buildProperties: {
-      appLocation: '/admin'
-      outputLocation: 'dist'
-      skipGithubActionWorkflowGeneration: true
-    }
-  }
-}
-
-// SWA app settings (available as env vars during Oryx build)
-resource staticWebAppSettings 'Microsoft.Web/staticSites/config@2023-12-01' = {
-  parent: staticWebApp
-  name: 'appsettings'
-  properties: {
-    VITE_CLIENT_ID: spaAppRegistration.appId
-    VITE_TENANT_ID: subscription().tenantId
-    VITE_API_URL: 'https://${functionApp.properties.defaultHostName}'
-  }
-}
-
 // SPA App Registration for admin portal (single-tenant)
 resource spaAppRegistration 'Microsoft.Graph/applications@v1.0' = {
   displayName: _adminAppName
@@ -160,9 +126,9 @@ resource spaAppRegistration 'Microsoft.Graph/applications@v1.0' = {
 
   spa: {
     redirectUris: [
-      'http://localhost:4280'
-      'http://localhost:5173'
-      'https://${staticWebApp.properties.defaultHostname}'
+      'http://localhost:5173/admin/'
+      'http://localhost:7071/admin/'
+      'https://${_functionAppName}.azurewebsites.net/admin/'
     ]
   }
 
@@ -256,6 +222,7 @@ resource dataCollectionEndpoint 'Microsoft.Insights/dataCollectionEndpoints@2023
 }
 
 // Custom Table in Log Analytics
+// Depends on appInsights to ensure workspace is fully active
 resource customTable 'Microsoft.OperationalInsights/workspaces/tables@2022-10-01' = {
   parent: logAnalyticsWorkspace
   name: '${_customTableName}_CL'
@@ -279,6 +246,7 @@ resource customTable 'Microsoft.OperationalInsights/workspaces/tables@2022-10-01
     }
     retentionInDays: 30
   }
+  dependsOn: [appInsights]
 }
 
 // Data Collection Rule
@@ -353,9 +321,8 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
       cors: {
         allowedOrigins: [
           'https://portal.azure.com'
-          'http://localhost:4280'
           'http://localhost:5173'
-          'https://${staticWebApp.properties.defaultHostname}'
+          'http://localhost:7071'
         ]
       }
       appSettings: [
@@ -486,8 +453,7 @@ output dataCollectionRuleName string = dataCollectionRule.name
 output customTableName string = '${_customTableName}_CL'
 output appInsightsName string = appInsights.name
 output appInsightsConnectionString string = appInsights.properties.ConnectionString
-output staticWebAppName string = staticWebApp.name
-output staticWebAppUrl string = 'https://${staticWebApp.properties.defaultHostname}'
+output adminPortalUrl string = 'https://${functionApp.properties.defaultHostName}/admin/'
 output spaAppRegistrationAppId string = spaAppRegistration.appId
 output spaAdminConsentUrl string = '${environment().authentication.loginEndpoint}${subscription().tenantId}/adminconsent?client_id=${spaAppRegistration.appId}'
 output adminGroupId string = adminGroup.id

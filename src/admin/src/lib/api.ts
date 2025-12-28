@@ -1,14 +1,15 @@
-import { msalInstance, loginRequest, apiUrl } from './auth';
+import { getMsalInstance, getLoginRequest, apiUrl } from './auth';
 import type { Client, AlertsConfig, RunHistoryEntry } from './types';
 
 async function getAccessToken(): Promise<string> {
+  const msalInstance = getMsalInstance();
   const accounts = msalInstance.getAllAccounts();
   if (accounts.length === 0) {
     throw new Error('No authenticated user');
   }
 
   const response = await msalInstance.acquireTokenSilent({
-    ...loginRequest,
+    ...getLoginRequest(),
     account: accounts[0],
   });
 
@@ -32,7 +33,7 @@ async function apiRequest<T>(
 
   if (!response.ok) {
     if (response.status === 401) {
-      msalInstance.loginRedirect(loginRequest);
+      getMsalInstance().loginRedirect(getLoginRequest());
       throw new Error('Session expired');
     }
     const error = await response.json().catch(() => ({ error: 'Request failed' }));

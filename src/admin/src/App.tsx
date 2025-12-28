@@ -4,7 +4,7 @@ import {
   UnauthenticatedTemplate,
   useMsal,
 } from '@azure/msal-react';
-import { loginRequest } from './lib/auth';
+import { getLoginRequest } from './lib/auth';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
@@ -18,7 +18,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
 
   const handleLogin = () => {
-    instance.loginRedirect(loginRequest);
+    instance.loginRedirect(getLoginRequest());
   };
 
   const renderPage = () => {
