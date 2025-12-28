@@ -38,6 +38,13 @@ export default defineConfig({
         ]
       },
       {
+        text: 'Configuration',
+        items: [
+          { text: 'Adding Clients', link: '/adding-clients' },
+          { text: 'Configuring Alerts', link: '/adding-alerts' }
+        ]
+      },
+      {
         text: 'Development',
         items: [
           { text: 'Debugging Rules', link: '/debugging-rules' }

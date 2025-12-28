@@ -8,6 +8,7 @@
     "CLIENT_ID": "",
     "CLIENT_SECRET": "",
     "LOG_ANALYTICS_ENDPOINT": "",
-    "LOG_ANALYTICS_RULE_ID": ""
+    "LOG_ANALYTICS_RULE_ID": "",
+    "ruleSource": "filesystem"
   }
 }

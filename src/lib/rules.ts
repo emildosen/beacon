@@ -128,15 +128,15 @@ function matchesException(
 /**
  * Evaluates an event against all rules for the given source type
  * Returns the first matching rule or null
+ * @param rules - Array of rules to evaluate against
  * @param tenantId - Optional tenant ID to filter tenant-specific rules
  */
 export function evaluateRules(
   event: AuditEvent | SignInLog | SecurityAlert,
   source: RuleSource,
-  tenantId?: string,
-  logger?: Logger
+  rules: Rule[],
+  tenantId?: string
 ): Rule | null {
-  const rules = getRules(logger);
   const eventRecord = event as Record<string, unknown>;
 
   const applicableRules = rules.filter((rule) => {

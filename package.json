@@ -22,6 +22,7 @@
     "@azure/functions": "^4.10.0",
     "@azure/identity": "^4.13.0",
     "@azure/monitor-ingestion": "^1.2.0",
+    "@azure/storage-blob": "^12.26.0",
     "@microsoft/microsoft-graph-client": "^3.0.7"
   },
   "devDependencies": {

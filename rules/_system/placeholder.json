@@ -1,0 +1,26 @@
+{
+  "name": "_placeholder (do not delete)",
+  "description": "Placeholder rule for blob storage schema visibility. This rule is disabled and will never match.",
+  "severity": "Low",
+  "enabled": false,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "None",
+    "technique": "None"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "_placeholder", "operator": "Equals", "value": "_never_matches" }
+    ]
+  },
+  "exceptions": [
+    { "field": "_placeholder", "operator": "Exists" }
+  ],
+  "tenantIds": ["00000000-0000-0000-0000-000000000000"],
+  "meta": {
+    "author": "system",
+    "created": "2025-01-01",
+    "notes": "System placeholder - do not delete. Ensures all rule fields are visible in Azure Storage Explorer."
+  }
+}

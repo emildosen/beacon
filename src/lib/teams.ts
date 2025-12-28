@@ -120,7 +120,7 @@ function buildAdaptiveCard(alerts: Alert[]): object {
  * Only sends alerts that meet the minimum severity threshold
  */
 export async function sendTeamsAlerts(alerts: Alert[], context: InvocationContext): Promise<void> {
-  const config = getAlertsConfig();
+  const config = await getAlertsConfig();
 
   if (!config.enabled || !config.webhookUrl) {
     return;

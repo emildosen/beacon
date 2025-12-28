@@ -175,11 +175,22 @@ export interface GraphPagedResponse<T> {
   value: T[];
 }
 
-// Client configuration from clients.json
+// Client status after poll
+export type ClientStatus =
+  | 'success'
+  | 'auditLogDisabled'
+  | 'appNotConsented'
+  | 'permissionDenied'
+  | 'tenantNotFound'
+  | 'error';
+
+// Client configuration
 export interface Client {
   name: string;
   tenantId: string;
   lastPoll?: string; // ISO timestamp of last successful poll
+  status?: ClientStatus;
+  statusMessage?: string; // Additional error details
 }
 
 // Alerts configuration from alerts.json

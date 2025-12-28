@@ -4,8 +4,8 @@ import { getSignIns, getSecurityAlerts } from '../lib/graph.js';
 import { evaluateRules, getEventId, getEventSummary } from '../lib/rules.js';
 import { writeAlerts } from '../lib/logAnalytics.js';
 import { sendTeamsAlerts } from '../lib/teams.js';
-import { getClients, updateClientLastPoll, getRules } from '../lib/config.js';
-import { Alert, AuditEvent, SignInLog, SecurityAlert, RuleSource, Client, Rule } from '../lib/types.js';
+import { getClients, updateClientStatus, getRules, PLACEHOLDER_TENANT_ID } from '../lib/config.js';
+import { Alert, AuditEvent, SignInLog, SecurityAlert, RuleSource, Client, Rule, ClientStatus } from '../lib/types.js';
 import {
   isDuplicate,
   recordAlert,
@@ -26,8 +26,10 @@ app.timer('pollAuditLogs', {
     const maxLookback = 6 * 60 * 60 * 1000; // 6 hour max for stale tenants
 
     // Preload rules and clients before processing
-    const rules = getRules(context);
-    const clients = getClients();
+    const rules = await getRules(context);
+    const allClients = await getClients();
+    // Filter out placeholder client
+    const clients = allClients.filter((c) => c.tenantId !== PLACEHOLDER_TENANT_ID);
     context.log(`Processing ${clients.length} clients against ${rules.length} rules`);
 
     const allAlerts: Alert[] = [];
@@ -49,15 +51,16 @@ app.timer('pollAuditLogs', {
       context.log(`Processing ${client.name}`);
 
       try {
-        const { alerts, eventCount } = await processClient(client, since, context);
+        const { alerts, eventCount } = await processClient(client, rules, since, context);
         allAlerts.push(...alerts);
         totalEvents += eventCount;
 
-        // Update lastPoll on success
-        updateClientLastPoll(client.tenantId, now);
+        // Update status on success
+        await updateClientStatus(client.tenantId, 'success');
       } catch (error) {
-        context.error(`Failed to process client ${client.name}:`, error);
-        // Don't update lastPoll on failure - will retry same window next run
+        const { status, message } = parseClientError(error);
+        context.error(`Failed to process client ${client.name}: ${message}`);
+        await updateClientStatus(client.tenantId, status, message);
       }
     }
 
@@ -89,6 +92,7 @@ app.timer('pollAuditLogs', {
 
 async function processClient(
   client: Client,
+  rules: Rule[],
   since: Date,
   context: InvocationContext
 ): Promise<{ alerts: Alert[]; eventCount: number }> {
@@ -104,7 +108,7 @@ async function processClient(
   // Process audit events
   eventCount += auditEvents.length;
   for (const event of auditEvents) {
-    const matchedRule = evaluateRules(event, 'AuditLog', client.tenantId, context);
+    const matchedRule = evaluateRules(event, 'AuditLog', rules, client.tenantId);
     if (matchedRule) {
       const alert = await processAlert(event, 'AuditLog', matchedRule, client, context);
       if (alert) alerts.push(alert);
@@ -114,7 +118,7 @@ async function processClient(
   // Process sign-ins
   eventCount += signIns.length;
   for (const event of signIns) {
-    const matchedRule = evaluateRules(event, 'SignIn', client.tenantId, context);
+    const matchedRule = evaluateRules(event, 'SignIn', rules, client.tenantId);
     if (matchedRule) {
       const alert = await processAlert(event, 'SignIn', matchedRule, client, context);
       if (alert) alerts.push(alert);
@@ -124,7 +128,7 @@ async function processClient(
   // Process security alerts
   eventCount += securityAlerts.length;
   for (const event of securityAlerts) {
-    const matchedRule = evaluateRules(event, 'SecurityAlert', client.tenantId, context);
+    const matchedRule = evaluateRules(event, 'SecurityAlert', rules, client.tenantId);
     if (matchedRule) {
       const alert = await processAlert(event, 'SecurityAlert', matchedRule, client, context);
       if (alert) alerts.push(alert);
@@ -211,4 +215,36 @@ function createAlert(
     SourceEventId: getEventId(event),
     RawEventSummary: getEventSummary(event, source),
   };
+}
+
+/**
+ * Parse an error from API calls and determine the client status
+ */
+function parseClientError(error: unknown): { status: ClientStatus; message: string } {
+  const errorStr = String(error);
+  const errorMessage = error instanceof Error ? error.message : errorStr;
+
+  // Check for common error patterns
+  if (errorStr.includes('AADSTS700016') || errorStr.includes('not found in the directory')) {
+    return { status: 'appNotConsented', message: 'App registration not consented in tenant' };
+  }
+
+  if (errorStr.includes('AADSTS65001') || errorStr.includes('consent')) {
+    return { status: 'appNotConsented', message: 'Admin consent required' };
+  }
+
+  if (errorStr.includes('AADSTS90002') || errorStr.includes('Tenant') && errorStr.includes('not found')) {
+    return { status: 'tenantNotFound', message: 'Tenant not found' };
+  }
+
+  if (errorStr.includes('403') || errorStr.includes('Forbidden') || errorStr.includes('Authorization_RequestDenied')) {
+    return { status: 'permissionDenied', message: 'Insufficient permissions' };
+  }
+
+  if (errorStr.includes('UnifiedAuditLogIsNotEnabled') || errorStr.includes('audit log')) {
+    return { status: 'auditLogDisabled', message: 'Unified audit log not enabled' };
+  }
+
+  // Generic error
+  return { status: 'error', message: errorMessage.slice(0, 500) };
 }

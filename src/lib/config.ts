@@ -1,44 +1,146 @@
-import { readFileSync, writeFileSync, readdirSync, existsSync } from 'fs';
-import { join, dirname, relative, basename } from 'path';
+import { readFileSync, readdirSync, existsSync } from 'fs';
+import { join, dirname, relative } from 'path';
 import { fileURLToPath } from 'url';
-import { Rule, Client, AlertsConfig } from './types.js';
+import { TableClient, TableServiceClient } from '@azure/data-tables';
+import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
+import { Rule, Client, AlertsConfig, Severity, ClientStatus } from './types.js';
 
 // Get the project root directory
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..', '..');
-const clientsPath = join(projectRoot, 'clients.json');
 const rulesDir = join(projectRoot, 'rules');
 
-let cachedClients: Client[] | null = null;
-let cachedRules: Rule[] | null = null;
-let cachedAlertsConfig: AlertsConfig | null = null;
+// Table and container names
+const CLIENTS_TABLE = 'Clients';
+const ALERTS_TABLE = 'AlertsConfig';
+const CONFIG_CONTAINER = 'config';
+
+// Lazy-initialized clients
+let clientsTableClient: TableClient | null = null;
+let alertsTableClient: TableClient | null = null;
+let configContainerClient: ContainerClient | null = null;
+let rulesSynced = false;
+
+type Logger = {
+  log: (...args: unknown[]) => void;
+  warn: (...args: unknown[]) => void;
+};
 
 /**
- * Loads and caches clients from clients.json
+ * Get connection string from environment
  */
-export function getClients(): Client[] {
-  if (cachedClients === null) {
-    try {
-      const content = readFileSync(clientsPath, 'utf-8');
-      cachedClients = JSON.parse(content) as Client[];
-    } catch (error) {
-      throw new Error(`Failed to load clients.json: ${error}`);
-    }
+function getConnectionString(): string {
+  const connStr = process.env.AZURE_STORAGE_CONNECTION_STRING;
+  if (!connStr) {
+    throw new Error('AZURE_STORAGE_CONNECTION_STRING environment variable not set');
   }
-  return cachedClients;
+  return connStr;
 }
 
 /**
- * Updates a client's lastPoll timestamp and writes back to clients.json
+ * Check if using filesystem for rules (default is blob)
  */
-export function updateClientLastPoll(tenantId: string, timestamp: Date): void {
-  const clients = getClients();
-  const client = clients.find((c) => c.tenantId === tenantId);
-  if (client) {
-    client.lastPoll = timestamp.toISOString();
-    writeFileSync(clientsPath, JSON.stringify(clients, null, 2));
+function useFilesystemForRules(): boolean {
+  return process.env.ruleSource === 'filesystem';
+}
+
+// Placeholder tenant ID - this client is skipped during processing
+export const PLACEHOLDER_TENANT_ID = '00000000-0000-0000-0000-000000000000';
+
+/**
+ * Initialize table clients and create tables if they don't exist
+ */
+async function ensureTablesExist(): Promise<void> {
+  if (clientsTableClient && alertsTableClient) return;
+
+  const connStr = getConnectionString();
+  const allowInsecureConnection = connStr.includes('127.0.0.1') || connStr.includes('UseDevelopmentStorage');
+  const serviceClient = TableServiceClient.fromConnectionString(connStr, { allowInsecureConnection });
+
+  // Create Clients table if it doesn't exist
+  try {
+    await serviceClient.createTable(CLIENTS_TABLE);
+  } catch (e: unknown) {
+    if ((e as { statusCode?: number }).statusCode !== 409) throw e;
   }
+
+  // Create AlertsConfig table if it doesn't exist
+  try {
+    await serviceClient.createTable(ALERTS_TABLE);
+  } catch (e: unknown) {
+    if ((e as { statusCode?: number }).statusCode !== 409) throw e;
+  }
+
+  clientsTableClient = TableClient.fromConnectionString(connStr, CLIENTS_TABLE, { allowInsecureConnection });
+  alertsTableClient = TableClient.fromConnectionString(connStr, ALERTS_TABLE, { allowInsecureConnection });
+
+  // Seed placeholder data if tables are empty (for Azure Storage Explorer column visibility)
+  await seedPlaceholderDataIfEmpty();
+}
+
+/**
+ * Add placeholder rows if tables are empty
+ */
+async function seedPlaceholderDataIfEmpty(): Promise<void> {
+  // Check if Clients table is empty
+  let hasClients = false;
+  for await (const _ of clientsTableClient!.listEntities()) {
+    hasClients = true;
+    break;
+  }
+
+  if (!hasClients) {
+    await clientsTableClient!.upsertEntity(
+      {
+        partitionKey: 'client',
+        rowKey: PLACEHOLDER_TENANT_ID,
+        name: '_placeholder (do not delete)',
+        lastPoll: new Date(),
+        status: 'success',
+        statusMessage: 'Placeholder row for schema visibility',
+      },
+      'Replace'
+    );
+  }
+
+  // Check if AlertsConfig has the alerts row
+  let hasAlertsConfig = false;
+  try {
+    await alertsTableClient!.getEntity('config', 'alerts');
+    hasAlertsConfig = true;
+  } catch (e: unknown) {
+    if ((e as { statusCode?: number }).statusCode !== 404) throw e;
+  }
+
+  if (!hasAlertsConfig) {
+    await alertsTableClient!.upsertEntity(
+      {
+        partitionKey: 'config',
+        rowKey: 'alerts',
+        webhookUrl: '',
+        minimumSeverity: 'Medium',
+        enabled: false,
+      },
+      'Replace'
+    );
+  }
+}
+
+/**
+ * Initialize blob container client
+ */
+async function ensureContainerExists(): Promise<ContainerClient> {
+  if (configContainerClient) return configContainerClient;
+
+  const connStr = getConnectionString();
+  const blobService = BlobServiceClient.fromConnectionString(connStr);
+  configContainerClient = blobService.getContainerClient(CONFIG_CONTAINER);
+
+  // Create container if it doesn't exist
+  await configContainerClient.createIfNotExists();
+
+  return configContainerClient;
 }
 
 /**
@@ -79,70 +181,218 @@ function isValidRule(rule: unknown): rule is Omit<Rule, 'id'> {
   );
 }
 
-type Logger = {
-  log: (...args: unknown[]) => void;
-  warn: (...args: unknown[]) => void;
-};
-
 /**
- * Loads and caches rules from /rules directory
- * Each .json file is a single rule, ID derived from file path
+ * Sync bundled rules from filesystem to blob storage
+ * Only uploads rules that don't already exist in blob (preserves user customizations)
  */
-export function getRules(logger?: Logger): Rule[] {
-  if (cachedRules === null) {
-    cachedRules = [];
-    const jsonFiles = findJsonFiles(rulesDir);
+async function syncBundledRulesToBlob(logger?: Logger): Promise<void> {
+  if (rulesSynced || useFilesystemForRules()) return;
+  rulesSynced = true;
 
-    for (const filePath of jsonFiles) {
-      try {
-        const content = readFileSync(filePath, 'utf-8');
-        const parsed = JSON.parse(content);
+  const container = await ensureContainerExists();
+  const jsonFiles = findJsonFiles(rulesDir);
 
-        if (!isValidRule(parsed)) {
-          logger?.warn(`Invalid rule file (missing required fields): ${filePath}`);
-          continue;
-        }
-
-        // Derive ID from relative path without .json extension
-        const relativePath = relative(rulesDir, filePath);
-        const id = relativePath.replace(/\.json$/, '').replace(/\\/g, '/');
-
-        const rule: Rule = {
-          ...parsed,
-          id,
-        };
-        cachedRules.push(rule);
-      } catch (error) {
-        logger?.warn(`Failed to load rule file ${filePath}: ${error}`);
-      }
-    }
-
-    logger?.log(`Loaded ${cachedRules.length} rules from ${rulesDir}`);
-  }
-  return cachedRules;
-}
-
-/**
- * Loads and caches alerts config from alerts.json
- */
-export function getAlertsConfig(): AlertsConfig {
-  if (cachedAlertsConfig === null) {
-    const alertsPath = join(projectRoot, 'alerts.json');
+  for (const filePath of jsonFiles) {
     try {
-      const content = readFileSync(alertsPath, 'utf-8');
-      cachedAlertsConfig = JSON.parse(content) as AlertsConfig;
-    } catch {
-      cachedAlertsConfig = { webhookUrl: '', minimumSeverity: 'Medium', enabled: false };
+      const relativePath = relative(rulesDir, filePath);
+      const blobName = `rules/${relativePath.replace(/\\/g, '/')}`;
+      const blobClient = container.getBlockBlobClient(blobName);
+
+      // Check if blob already exists
+      const exists = await blobClient.exists();
+      if (exists) {
+        continue; // Don't overwrite user customizations
+      }
+
+      // Upload bundled rule
+      const content = readFileSync(filePath, 'utf-8');
+      await blobClient.upload(content, content.length, {
+        blobHTTPHeaders: { blobContentType: 'application/json' },
+      });
+      logger?.log(`Synced rule to blob: ${blobName}`);
+    } catch (error) {
+      logger?.warn(`Failed to sync rule ${filePath}: ${error}`);
     }
   }
-  return cachedAlertsConfig;
 }
 
 /**
- * Clears cached config (useful for testing or hot-reload)
+ * Load rules from filesystem
  */
-export function clearConfigCache(): void {
-  cachedClients = null;
-  cachedRules = null;
-  cachedAlertsConfig = null;
+function loadRulesFromFilesystem(logger?: Logger): Rule[] {
+  const rules: Rule[] = [];
+  const jsonFiles = findJsonFiles(rulesDir);
+
+  for (const filePath of jsonFiles) {
+    try {
+      const content = readFileSync(filePath, 'utf-8');
+      const parsed = JSON.parse(content);
+
+      if (!isValidRule(parsed)) {
+        logger?.warn(`Invalid rule file (missing required fields): ${filePath}`);
+        continue;
+      }
+
+      const relativePath = relative(rulesDir, filePath);
+      const id = relativePath.replace(/\.json$/, '').replace(/\\/g, '/');
+
+      rules.push({ ...parsed, id });
+    } catch (error) {
+      logger?.warn(`Failed to load rule file ${filePath}: ${error}`);
+    }
+  }
+
+  logger?.log(`Loaded ${rules.length} rules from filesystem`);
+  return rules;
+}
+
+/**
+ * Load rules from blob storage
+ */
+async function loadRulesFromBlob(logger?: Logger): Promise<Rule[]> {
+  const container = await ensureContainerExists();
+  const rules: Rule[] = [];
+
+  // List all blobs with prefix 'rules/'
+  for await (const blob of container.listBlobsFlat({ prefix: 'rules/' })) {
+    if (!blob.name.endsWith('.json')) continue;
+
+    try {
+      const blobClient = container.getBlockBlobClient(blob.name);
+      const downloadResponse = await blobClient.download();
+      const content = await streamToString(downloadResponse.readableStreamBody!);
+      const parsed = JSON.parse(content);
+
+      if (!isValidRule(parsed)) {
+        logger?.warn(`Invalid rule blob (missing required fields): ${blob.name}`);
+        continue;
+      }
+
+      // Derive ID from blob name (strip 'rules/' prefix and '.json' suffix)
+      const id = blob.name.replace(/^rules\//, '').replace(/\.json$/, '');
+
+      rules.push({ ...parsed, id });
+    } catch (error) {
+      logger?.warn(`Failed to load rule blob ${blob.name}: ${error}`);
+    }
+  }
+
+  logger?.log(`Loaded ${rules.length} rules from blob storage`);
+  return rules;
+}
+
+/**
+ * Convert a readable stream to string
+ */
+async function streamToString(stream: NodeJS.ReadableStream): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks).toString('utf-8');
+}
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+/**
+ * Get all clients from Table Storage
+ */
+export async function getClients(): Promise<Client[]> {
+  await ensureTablesExist();
+
+  const clients: Client[] = [];
+  const entities = clientsTableClient!.listEntities<{
+    name: string;
+    lastPoll?: Date;
+    status?: string;
+    statusMessage?: string;
+  }>();
+
+  for await (const entity of entities) {
+    clients.push({
+      tenantId: entity.rowKey!,
+      name: entity.name,
+      lastPoll: entity.lastPoll?.toISOString(),
+      status: entity.status as ClientStatus | undefined,
+      statusMessage: entity.statusMessage,
+    });
+  }
+
+  return clients;
+}
+
+/**
+ * Update a client's status after a poll run
+ */
+export async function updateClientStatus(
+  tenantId: string,
+  status: ClientStatus,
+  statusMessage?: string
+): Promise<void> {
+  await ensureTablesExist();
+
+  try {
+    const existing = await clientsTableClient!.getEntity<{ name: string }>('client', tenantId);
+    await clientsTableClient!.upsertEntity(
+      {
+        partitionKey: 'client',
+        rowKey: tenantId,
+        name: existing.name,
+        lastPoll: new Date(),
+        status,
+        statusMessage: statusMessage || '',
+      },
+      'Replace'
+    );
+  } catch (e: unknown) {
+    if ((e as { statusCode?: number }).statusCode === 404) {
+      // Client doesn't exist, can't update
+      return;
+    }
+    throw e;
+  }
+}
+
+/**
+ * Get rules from blob storage or filesystem based on ruleSource env var
+ * Syncs bundled rules to blob on first call (when using blob mode)
+ */
+export async function getRules(logger?: Logger): Promise<Rule[]> {
+  if (useFilesystemForRules()) {
+    return loadRulesFromFilesystem(logger);
+  }
+
+  // Sync bundled rules to blob (only uploads missing ones)
+  await syncBundledRulesToBlob(logger);
+
+  return loadRulesFromBlob(logger);
+}
+
+/**
+ * Get alerts config from Table Storage
+ */
+export async function getAlertsConfig(): Promise<AlertsConfig> {
+  await ensureTablesExist();
+
+  try {
+    const entity = await alertsTableClient!.getEntity<{
+      webhookUrl: string;
+      minimumSeverity: string;
+      enabled: boolean;
+    }>('config', 'alerts');
+
+    return {
+      webhookUrl: entity.webhookUrl || '',
+      minimumSeverity: (entity.minimumSeverity as Severity) || 'Medium',
+      enabled: entity.enabled ?? false,
+    };
+  } catch (e: unknown) {
+    if ((e as { statusCode?: number }).statusCode === 404) {
+      // Return defaults if no config exists
+      return { webhookUrl: '', minimumSeverity: 'Medium', enabled: false };
+    }
+    throw e;
+  }
 }

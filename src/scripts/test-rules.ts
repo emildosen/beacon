@@ -8,7 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { evaluateRules } from '../lib/rules.js';
 import { getRules } from '../lib/config.js';
-import { RuleSource, AuditEvent, SignInLog, SecurityAlert } from '../lib/types.js';
+import { RuleSource, AuditEvent, SignInLog, SecurityAlert, Rule } from '../lib/types.js';
 
 // ANSI colors for terminal output
 const colors = {
@@ -122,8 +122,8 @@ async function main() {
 
   // Load rules
   console.log(`${colors.cyan}Loading rules...${colors.reset}`);
-  const rules = getRules();
-  const enabledRules = rules.filter(r => r.enabled);
+  const rules = await getRules();
+  const enabledRules = rules.filter((r) => r.enabled);
   console.log(`  ${enabledRules.length} rules loaded (${rules.length - enabledRules.length} disabled)`);
   if (tenantId) {
     console.log(`  ${colors.magenta}Tenant filter: ${tenantId}${colors.reset}`);
@@ -165,6 +165,7 @@ async function main() {
     const matchedRule = evaluateRules(
       event as AuditEvent | SignInLog | SecurityAlert,
       sourceType,
+      rules,
       tenantId
     );
 
