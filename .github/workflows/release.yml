@@ -34,7 +34,7 @@ jobs:
           npm ci --omit=dev
 
           # Create zip with built code and prod dependencies
-          zip -r beacon.zip dist node_modules host.json package.json
+          zip -r beacon.zip dist node_modules rules host.json package.json
 
       - name: Create/Update Release
         uses: softprops/action-gh-release@v2
@@ -46,4 +46,4 @@ jobs:
           body: |
             Automated release build.
 
-            Deploy to Azure using the Bicep template in `/infra`.
+            Deploy to Azure using the Bicep template `/infra/beacon.bicep`.
