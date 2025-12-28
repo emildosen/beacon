@@ -206,7 +206,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
     serverFarmId: appServicePlan.id
     siteConfig: {
       alwaysOn: appPlanSku != 'Y1'
-      linuxFxVersion: 'NODE|22-lts'
+      linuxFxVersion: 'Node|22'
       cors: {
         allowedOrigins: [
           'https://portal.azure.com'
