@@ -1,0 +1,49 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Create deployment package
+        run: |
+          # Install production dependencies only
+          rm -rf node_modules
+          npm ci --omit=dev
+
+          # Create zip with built code and prod dependencies
+          zip -r beacon.zip dist node_modules host.json package.json
+
+      - name: Create/Update Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: beacon.zip
+          tag_name: ${{ github.ref_name || 'latest' }}
+          name: ${{ github.ref_name || 'Latest Build' }}
+          make_latest: true
+          body: |
+            Automated release build.
+
+            Deploy to Azure using the Bicep template in `/infra`.

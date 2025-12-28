@@ -270,12 +270,8 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
         }
         {
-          name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
-          value: 'true'
-        }
-        {
-          name: 'ENABLE_ORYX_BUILD'
-          value: 'true'
+          name: 'WEBSITE_RUN_FROM_PACKAGE'
+          value: 'https://github.com/emildosen/beacon/releases/latest/download/beacon.zip'
         }
         {
           name: 'AzureWebJobsFeatureFlags'
@@ -298,16 +294,6 @@ resource federatedCredential 'Microsoft.Graph/applications/federatedIdentityCred
   description: 'Federated credential for ${functionAppName} managed identity'
 }
 
-// Deploy function code from GitHub
-resource sourceControl 'Microsoft.Web/sites/sourcecontrols@2023-01-01' = {
-  parent: functionApp
-  name: 'web'
-  properties: {
-    repoUrl: 'https://github.com/emildosen/beacon'
-    branch: 'main'
-    isManualIntegration: true
-  }
-}
 
 // Role assignment: Monitoring Metrics Publisher for Function App to write to DCR
 resource dcrRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
