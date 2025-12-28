@@ -36,6 +36,7 @@ var logAnalyticsWorkspaceName = 'law-${appNameLower}'
 var dataCollectionEndpointName = 'dce-${appNameLower}'
 var dataCollectionRuleName = 'dcr-${appNameLower}-alerts'
 var customTableName = 'Beacon_Alerts'
+var appInsightsName = 'ai-${appNameLower}'
 
 // Multi-tenant App Registration
 resource appRegistration 'Microsoft.Graph/applications@v1.0' = {
@@ -111,6 +112,18 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09
       name: 'PerGB2018'
     }
     retentionInDays: 30
+  }
+}
+
+// Application Insights (workspace-based)
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: appInsightsName
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalyticsWorkspace.id
+    RetentionInDays: 30
   }
 }
 
@@ -292,6 +305,10 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           name: 'AzureWebJobsFeatureFlags'
           value: 'EnableWorkerIndexing'
         }
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: appInsights.properties.ConnectionString
+        }
       ]
     }
     httpsOnly: true
@@ -336,3 +353,5 @@ output dataCollectionEndpointUrl string = dataCollectionEndpoint.properties.logs
 output dataCollectionRuleId string = dataCollectionRule.properties.immutableId
 output dataCollectionRuleName string = dataCollectionRule.name
 output customTableName string = '${customTableName}_CL'
+output appInsightsName string = appInsights.name
+output appInsightsConnectionString string = appInsights.properties.ConnectionString

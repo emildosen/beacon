@@ -53,3 +53,4 @@ output dataCollectionEndpointUrl string = beaconResources.outputs.dataCollection
 output dataCollectionRuleId string = beaconResources.outputs.dataCollectionRuleId
 output dataCollectionRuleName string = beaconResources.outputs.dataCollectionRuleName
 output customTableName string = beaconResources.outputs.customTableName
+output appInsightsName string = beaconResources.outputs.appInsightsName

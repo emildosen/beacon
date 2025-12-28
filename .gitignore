@@ -17,6 +17,10 @@ local.settings.json
 rules/client-specific/*
 !rules/client-specific/emergency-access-account-sign-in-contoso.template.json
 
+# Bicep builds
+infra/beacon.json
+infra/beacon-resources.json
+
 # Docs
 docs/.vitepress/dist
 docs/.vitepress/cache
