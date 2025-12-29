@@ -290,7 +290,7 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' 
       }
     ]
   }
-  dependsOn: [customTable]
+  dependsOn: [customTable, appInsights]
 }
 
 // App Service Plan

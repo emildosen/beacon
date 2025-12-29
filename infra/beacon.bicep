@@ -46,9 +46,6 @@ param dataCollectionRuleName string = ''
 @description('Application Insights name (leave empty for auto-generated)')
 param appInsightsName string = ''
 
-@description('Static Web App name (leave empty for auto-generated)')
-param staticWebAppName string = ''
-
 @description('Admin portal app registration name (leave empty for auto-generated)')
 param adminAppName string = ''
 
@@ -77,7 +74,6 @@ module beaconResources 'beacon-resources.bicep' = {
     dataCollectionEndpointName: dataCollectionEndpointName
     dataCollectionRuleName: dataCollectionRuleName
     appInsightsName: appInsightsName
-    staticWebAppName: staticWebAppName
     adminAppName: adminAppName
     adminGroupName: adminGroupName
   }
@@ -99,8 +95,7 @@ output dataCollectionRuleId string = beaconResources.outputs.dataCollectionRuleI
 output dataCollectionRuleName string = beaconResources.outputs.dataCollectionRuleName
 output customTableName string = beaconResources.outputs.customTableName
 output appInsightsName string = beaconResources.outputs.appInsightsName
-output staticWebAppName string = beaconResources.outputs.staticWebAppName
-output staticWebAppUrl string = beaconResources.outputs.staticWebAppUrl
+output adminPortalUrl string = beaconResources.outputs.adminPortalUrl
 output spaAppRegistrationAppId string = beaconResources.outputs.spaAppRegistrationAppId
 output spaAdminConsentUrl string = beaconResources.outputs.spaAdminConsentUrl
 output adminGroupId string = beaconResources.outputs.adminGroupId

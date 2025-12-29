@@ -2,7 +2,7 @@
   "name": "beacon",
   "version": "1.0.0",
   "type": "module",
-  "main": "dist/functions/pollAuditLogs.js",
+  "main": "dist/functions/index.js",
   "scripts": {
     "build": "npm run build:functions && npm run build:admin",
     "build:functions": "tsc",
