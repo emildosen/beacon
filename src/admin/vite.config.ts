@@ -5,7 +5,7 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   root: path.resolve(__dirname),
-  base: '/admin/',
+  base: '/portal/',
   build: {
     outDir: path.resolve(__dirname, '../../dist/admin'),
     emptyOutDir: true,
