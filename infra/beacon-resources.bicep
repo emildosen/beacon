@@ -49,6 +49,9 @@ param adminAppName string = ''
 @description('Name of the security group for admin portal access')
 param adminGroupName string = 'Beacon Admins'
 
+@description('Set to false if SPA app registration already exists (skips creation)')
+param createSpaAppRegistration bool = true
+
 // Variables
 var skuMap = {
   Y1: { name: 'Y1', tier: 'Dynamic' }
@@ -118,41 +121,24 @@ resource adminGroup 'Microsoft.Graph/groups@v1.0' = {
   description: 'Members of this group can access the ${appName} admin portal to manage clients and alert configuration'
 }
 
-// Generate a stable GUID for the API scope
-var spaApiScopeId = guid(subscription().id, 'beacon-admin-api-scope')
+var spaUniqueName = '${appNameLower}-admin-spa'
 
-// SPA App Registration for admin portal (single-tenant)
-resource spaAppRegistration 'Microsoft.Graph/applications@v1.0' = {
+// Reference existing SPA App Registration if it exists
+resource existingSpaAppRegistration 'Microsoft.Graph/applications@v1.0' existing = if (!createSpaAppRegistration) {
+  uniqueName: spaUniqueName
+}
+
+// SPA App Registration for admin portal (single-tenant) - only create if it doesn't exist
+resource spaAppRegistration 'Microsoft.Graph/applications@v1.0' = if (createSpaAppRegistration) {
   displayName: _adminAppName
-  uniqueName: '${appNameLower}-admin-spa'
+  uniqueName: spaUniqueName
   signInAudience: 'AzureADMyOrg'
-
-  // Application ID URI for API scope
-  identifierUris: [
-    'api://${appNameLower}-admin'
-  ]
 
   spa: {
     redirectUris: [
       'http://localhost:5173/portal/'
       'http://localhost:7071/portal/'
       'https://${_functionAppName}.azurewebsites.net/portal/'
-    ]
-  }
-
-  // Expose API for backend access
-  api: {
-    oauth2PermissionScopes: [
-      {
-        id: spaApiScopeId
-        adminConsentDescription: 'Access Beacon Admin API'
-        adminConsentDisplayName: 'Access Beacon Admin API'
-        isEnabled: true
-        type: 'User'
-        userConsentDescription: 'Access Beacon Admin API on your behalf'
-        userConsentDisplayName: 'Access Beacon Admin'
-        value: 'access_as_user'
-      }
     ]
   }
 
@@ -188,9 +174,13 @@ resource spaAppRegistration 'Microsoft.Graph/applications@v1.0' = {
   }
 }
 
-// Service Principal for SPA App Registration
-resource spaServicePrincipal 'Microsoft.Graph/servicePrincipals@v1.0' = {
-  appId: spaAppRegistration.appId
+// Get the appId from whichever resource exists
+#disable-next-line BCP318
+var spaAppId = createSpaAppRegistration ? spaAppRegistration.appId : existingSpaAppRegistration.appId
+
+// Service Principal for SPA App Registration - only create if we created the app
+resource spaServicePrincipal 'Microsoft.Graph/servicePrincipals@v1.0' = if (createSpaAppRegistration) {
+  appId: spaAppId
 }
 
 // Storage Account (required for Azure Functions)
@@ -259,8 +249,78 @@ resource dataCollectionEndpoint 'Microsoft.Insights/dataCollectionEndpoints@2023
   dependsOn: [logAnalyticsWorkspace]
 }
 
+// Managed identity for deployment scripts
+resource deploymentScriptIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: 'id-deploy-${uniqueSuffix}'
+  location: location
+}
+
+// Role assignment for deployment script to read LAW
+resource deployScriptRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, deploymentScriptIdentity.id, 'Reader')
+  scope: logAnalyticsWorkspace
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'acdd72a7-3385-48ef-bd42-f606fba81ae7') // Reader
+    principalId: deploymentScriptIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Wait for Log Analytics Workspace to be fully active before creating custom table
+// This addresses the "Workspace not active" error that can occur on fresh deployments
+resource waitForLaw 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
+  name: 'wait-for-law-${uniqueSuffix}'
+  location: location
+  kind: 'AzureCLI'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${deploymentScriptIdentity.id}': {}
+    }
+  }
+  properties: {
+    azCliVersion: '2.63.0'
+    retentionInterval: 'PT1H'
+    timeout: 'PT10M'
+    cleanupPreference: 'OnSuccess'
+    environmentVariables: [
+      {
+        name: 'RESOURCE_GROUP'
+        value: resourceGroup().name
+      }
+      {
+        name: 'WORKSPACE_NAME'
+        value: logAnalyticsWorkspace.name
+      }
+    ]
+    scriptContent: '''
+      echo "Waiting for Log Analytics Workspace to be active..."
+      for i in {1..30}; do
+        STATUS=$(az monitor log-analytics workspace show \
+          --resource-group "$RESOURCE_GROUP" \
+          --workspace-name "$WORKSPACE_NAME" \
+          --query "provisioningState" -o tsv 2>/dev/null)
+
+        if [ "$STATUS" = "Succeeded" ]; then
+          echo "Workspace is active. Waiting additional 30 seconds for backend sync..."
+          sleep 30
+          echo "Ready for table creation."
+          exit 0
+        fi
+
+        echo "Attempt $i: Workspace status is '$STATUS'. Waiting 10 seconds..."
+        sleep 10
+      done
+
+      echo "Timeout waiting for workspace to become active"
+      exit 1
+    '''
+  }
+  dependsOn: [appInsights, dataCollectionEndpoint, deployScriptRoleAssignment]
+}
+
 // Custom Table in Log Analytics
-// Depends on DCE and appInsights to ensure workspace is fully active before table creation
+// Depends on waitForLaw script to ensure workspace is fully active before table creation
 resource customTable 'Microsoft.OperationalInsights/workspaces/tables@2022-10-01' = {
   parent: logAnalyticsWorkspace
   name: '${_customTableName}_CL'
@@ -284,7 +344,7 @@ resource customTable 'Microsoft.OperationalInsights/workspaces/tables@2022-10-01
     }
     retentionInDays: 30
   }
-  dependsOn: [dataCollectionEndpoint, appInsights]
+  dependsOn: [waitForLaw]
 }
 
 // Data Collection Rule
@@ -439,15 +499,11 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         // Admin portal authentication
         {
           name: 'SPA_CLIENT_ID'
-          value: spaAppRegistration.appId
+          value: spaAppId
         }
         {
           name: 'ADMIN_GROUP_ID'
           value: adminGroup.id
-        }
-        {
-          name: 'SPA_API_SCOPE'
-          value: 'api://${appNameLower}-admin/access_as_user'
         }
       ]
     }
@@ -496,7 +552,7 @@ output customTableName string = '${_customTableName}_CL'
 output appInsightsName string = appInsights.name
 output appInsightsConnectionString string = appInsights.properties.ConnectionString
 output adminPortalUrl string = 'https://${functionApp.properties.defaultHostName}/portal/'
-output spaAppRegistrationAppId string = spaAppRegistration.appId
-output spaAdminConsentUrl string = '${environment().authentication.loginEndpoint}${subscription().tenantId}/adminconsent?client_id=${spaAppRegistration.appId}'
+output spaAppRegistrationAppId string = spaAppId
+output spaAdminConsentUrl string = '${environment().authentication.loginEndpoint}${subscription().tenantId}/adminconsent?client_id=${spaAppId}'
 output adminGroupId string = adminGroup.id
 output adminGroupName string = adminGroup.displayName

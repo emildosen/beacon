@@ -33,7 +33,6 @@ export type AuthResult = AuthSuccess | AuthFailure;
 export async function validateRequest(request: HttpRequest): Promise<AuthResult> {
   const tenantId = process.env.TENANT_ID || process.env.AZURE_TENANT_ID;
   const clientId = process.env.SPA_CLIENT_ID;
-  const apiScope = process.env.SPA_API_SCOPE;
   const adminGroupId = process.env.ADMIN_GROUP_ID;
 
   if (!tenantId || !clientId || !adminGroupId) {
@@ -43,10 +42,6 @@ export async function validateRequest(request: HttpRequest): Promise<AuthResult>
       status: 500,
     };
   }
-
-  // Derive audience from API scope (e.g., api://beacon-admin/access_as_user -> api://beacon-admin)
-  // Falls back to client ID if no API scope configured
-  const audience = apiScope ? apiScope.split('/').slice(0, 3).join('/') : clientId;
 
   // Extract Bearer token
   const authHeader = request.headers.get('authorization');
@@ -70,7 +65,7 @@ export async function validateRequest(request: HttpRequest): Promise<AuthResult>
     // Verify token signature, issuer, and audience
     const { payload } = await jwtVerify(token, jwksCache, {
       issuer: `https://login.microsoftonline.com/${tenantId}/v2.0`,
-      audience,
+      audience: clientId,
     });
 
     const claims = payload as TokenClaims;

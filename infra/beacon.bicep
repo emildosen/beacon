@@ -52,6 +52,9 @@ param adminAppName string = ''
 @description('Name of the security group for admin portal access')
 param adminGroupName string = 'Beacon Admins'
 
+@description('Set to false if SPA app registration already exists (skips creation)')
+param createSpaAppRegistration bool = true
+
 // Resource Group
 resource rg 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   name: resourceGroupName
@@ -76,6 +79,7 @@ module beaconResources 'beacon-resources.bicep' = {
     appInsightsName: appInsightsName
     adminAppName: adminAppName
     adminGroupName: adminGroupName
+    createSpaAppRegistration: createSpaAppRegistration
   }
 }
 

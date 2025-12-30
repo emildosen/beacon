@@ -3,7 +3,6 @@ import { Configuration, PublicClientApplication } from '@azure/msal-browser';
 interface AuthConfig {
   clientId: string;
   tenantId: string;
-  apiScope: string;
 }
 
 let msalInstance: PublicClientApplication | null = null;
@@ -59,8 +58,10 @@ export function getLoginRequest() {
   if (!authConfig) {
     throw new Error('Auth not initialized. Call initializeAuth() first.');
   }
+  // Request access token for the SPA app itself (client ID as scope)
+  // This produces a token with audience = client ID
   return {
-    scopes: [authConfig.apiScope],
+    scopes: [`${authConfig.clientId}/.default`],
   };
 }
 
