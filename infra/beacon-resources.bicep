@@ -126,9 +126,9 @@ resource spaAppRegistration 'Microsoft.Graph/applications@v1.0' = {
 
   spa: {
     redirectUris: [
-      'http://localhost:5173/admin/'
-      'http://localhost:7071/admin/'
-      'https://${_functionAppName}.azurewebsites.net/admin/'
+      'http://localhost:5173/portal/'
+      'http://localhost:7071/portal/'
+      'https://${_functionAppName}.azurewebsites.net/portal/'
     ]
   }
 
@@ -219,10 +219,11 @@ resource dataCollectionEndpoint 'Microsoft.Insights/dataCollectionEndpoints@2023
       publicNetworkAccess: 'Enabled'
     }
   }
+  dependsOn: [logAnalyticsWorkspace]
 }
 
 // Custom Table in Log Analytics
-// Depends on appInsights to ensure workspace is fully active
+// Depends on DCE and appInsights to ensure workspace is fully active before table creation
 resource customTable 'Microsoft.OperationalInsights/workspaces/tables@2022-10-01' = {
   parent: logAnalyticsWorkspace
   name: '${_customTableName}_CL'
@@ -246,7 +247,7 @@ resource customTable 'Microsoft.OperationalInsights/workspaces/tables@2022-10-01
     }
     retentionInDays: 30
   }
-  dependsOn: [appInsights]
+  dependsOn: [dataCollectionEndpoint, appInsights]
 }
 
 // Data Collection Rule
@@ -453,7 +454,7 @@ output dataCollectionRuleName string = dataCollectionRule.name
 output customTableName string = '${_customTableName}_CL'
 output appInsightsName string = appInsights.name
 output appInsightsConnectionString string = appInsights.properties.ConnectionString
-output adminPortalUrl string = 'https://${functionApp.properties.defaultHostName}/admin/'
+output adminPortalUrl string = 'https://${functionApp.properties.defaultHostName}/portal/'
 output spaAppRegistrationAppId string = spaAppRegistration.appId
 output spaAdminConsentUrl string = '${environment().authentication.loginEndpoint}${subscription().tenantId}/adminconsent?client_id=${spaAppRegistration.appId}'
 output adminGroupId string = adminGroup.id

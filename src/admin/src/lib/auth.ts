@@ -26,7 +26,7 @@ export async function initializeAuth(): Promise<void> {
     auth: {
       clientId: authConfig!.clientId,
       authority: `https://login.microsoftonline.com/${authConfig!.tenantId}`,
-      redirectUri: window.location.origin + '/admin/',
+      redirectUri: window.location.origin + '/portal/',
     },
     cache: {
       cacheLocation: 'sessionStorage',
