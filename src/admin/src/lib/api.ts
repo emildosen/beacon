@@ -1,7 +1,7 @@
 import { getMsalInstance, getLoginRequest, apiUrl } from './auth';
 import type { Client, AlertsConfig, RunHistoryEntry } from './types';
 
-async function getAccessToken(): Promise<string> {
+async function getIdToken(): Promise<string> {
   const msalInstance = getMsalInstance();
   const accounts = msalInstance.getAllAccounts();
   if (accounts.length === 0) {
@@ -13,14 +13,15 @@ async function getAccessToken(): Promise<string> {
     account: accounts[0],
   });
 
-  return response.accessToken;
+  // Use ID token for API calls - it has audience = clientId
+  return response.idToken;
 }
 
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = await getAccessToken();
+  const token = await getIdToken();
 
   const response = await fetch(`${apiUrl}/api${endpoint}`, {
     ...options,

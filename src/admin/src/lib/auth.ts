@@ -58,10 +58,9 @@ export function getLoginRequest() {
   if (!authConfig) {
     throw new Error('Auth not initialized. Call initializeAuth() first.');
   }
-  // Request access token for the SPA app itself (client ID as scope)
-  // This produces a token with audience = client ID
+  // Request standard OIDC scopes - the ID token will have audience = clientId
   return {
-    scopes: [`${authConfig.clientId}/.default`],
+    scopes: ['openid', 'profile'],
   };
 }
 
