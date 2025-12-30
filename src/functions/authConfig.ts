@@ -10,8 +10,8 @@ app.http('authConfig', {
   authLevel: 'anonymous',
   route: 'api/auth-config',
   handler: async (): Promise<HttpResponseInit> => {
-    const clientId = process.env.SPA_CLIENT_ID;
-    const tenantId = process.env.TENANT_ID;
+    const clientId = process.env.SPA_CLIENT_ID || process.env.AZURE_CLIENT_ID;
+    const tenantId = process.env.TENANT_ID || process.env.AZURE_TENANT_ID;
 
     if (!clientId || !tenantId) {
       return {
