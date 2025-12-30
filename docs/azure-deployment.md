@@ -141,10 +141,6 @@ az deployment sub create \
 
 ### Hosting Plan Options
 
-::: warning Cost Warning
-The default `B1` plan costs approximately **$55 USD/month**. This is the recommended option for reliable deployments.
-:::
-
 | SKU | Type | Best For |
 |-----|------|----------|
 | `B1` | Basic | **Recommended.** Reliable builds and consistent performance. |

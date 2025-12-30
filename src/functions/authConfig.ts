@@ -12,6 +12,7 @@ app.http('authConfig', {
   handler: async (): Promise<HttpResponseInit> => {
     const clientId = process.env.SPA_CLIENT_ID || process.env.AZURE_CLIENT_ID;
     const tenantId = process.env.TENANT_ID || process.env.AZURE_TENANT_ID;
+    const apiScope = process.env.SPA_API_SCOPE;
 
     if (!clientId || !tenantId) {
       return {
@@ -32,6 +33,7 @@ app.http('authConfig', {
       body: JSON.stringify({
         clientId,
         tenantId,
+        apiScope: apiScope || `api://${clientId}/access_as_user`,
       }),
     };
   },

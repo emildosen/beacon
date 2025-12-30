@@ -118,11 +118,19 @@ resource adminGroup 'Microsoft.Graph/groups@v1.0' = {
   description: 'Members of this group can access the ${appName} admin portal to manage clients and alert configuration'
 }
 
+// Generate a stable GUID for the API scope
+var spaApiScopeId = guid(subscription().id, 'beacon-admin-api-scope')
+
 // SPA App Registration for admin portal (single-tenant)
 resource spaAppRegistration 'Microsoft.Graph/applications@v1.0' = {
   displayName: _adminAppName
   uniqueName: '${appNameLower}-admin-spa'
   signInAudience: 'AzureADMyOrg'
+
+  // Application ID URI for API scope
+  identifierUris: [
+    'api://${appNameLower}-admin'
+  ]
 
   spa: {
     redirectUris: [
@@ -131,6 +139,35 @@ resource spaAppRegistration 'Microsoft.Graph/applications@v1.0' = {
       'https://${_functionAppName}.azurewebsites.net/portal/'
     ]
   }
+
+  // Expose API for backend access
+  api: {
+    oauth2PermissionScopes: [
+      {
+        id: spaApiScopeId
+        adminConsentDescription: 'Access Beacon Admin API'
+        adminConsentDisplayName: 'Access Beacon Admin API'
+        isEnabled: true
+        type: 'User'
+        userConsentDescription: 'Access Beacon Admin API on your behalf'
+        userConsentDisplayName: 'Access Beacon Admin'
+        value: 'access_as_user'
+      }
+    ]
+  }
+
+  // Microsoft Graph permissions
+  requiredResourceAccess: [
+    {
+      resourceAppId: '00000003-0000-0000-c000-000000000000' // Microsoft Graph
+      resourceAccess: [
+        {
+          id: 'e1fe6dd8-ba31-4d61-89e7-88639da4683d' // User.Read
+          type: 'Scope'
+        }
+      ]
+    }
+  ]
 
   // Include groups claim in tokens for authorization
   optionalClaims: {
@@ -407,6 +444,10 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'ADMIN_GROUP_ID'
           value: adminGroup.id
+        }
+        {
+          name: 'SPA_API_SCOPE'
+          value: 'api://${appNameLower}-admin/access_as_user'
         }
       ]
     }

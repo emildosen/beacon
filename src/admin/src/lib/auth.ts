@@ -3,6 +3,7 @@ import { Configuration, PublicClientApplication } from '@azure/msal-browser';
 interface AuthConfig {
   clientId: string;
   tenantId: string;
+  apiScope: string;
 }
 
 let msalInstance: PublicClientApplication | null = null;
@@ -36,6 +37,9 @@ export async function initializeAuth(): Promise<void> {
 
   msalInstance = new PublicClientApplication(msalConfig);
   await msalInstance.initialize();
+
+  // Handle the redirect response after login
+  await msalInstance.handleRedirectPromise();
 }
 
 /**
@@ -56,7 +60,7 @@ export function getLoginRequest() {
     throw new Error('Auth not initialized. Call initializeAuth() first.');
   }
   return {
-    scopes: [`${authConfig.clientId}/.default`],
+    scopes: [authConfig.apiScope],
   };
 }
 
