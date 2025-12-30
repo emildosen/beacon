@@ -118,7 +118,7 @@ async function handleDeleteClient(request: HttpRequest): Promise<HttpResponseIni
 app.http('clients', {
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   authLevel: 'anonymous',
-  route: 'clients/{tenantId?}',
+  route: 'api/clients/{tenantId?}',
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     // Validate JWT
     const auth = await validateRequest(request);

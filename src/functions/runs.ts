@@ -32,7 +32,7 @@ async function handleGetRuns(request: HttpRequest): Promise<HttpResponseInit> {
 app.http('runs', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  route: 'runs',
+  route: 'api/runs',
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     // Validate JWT
     const auth = await validateRequest(request);

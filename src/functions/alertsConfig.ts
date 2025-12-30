@@ -72,7 +72,7 @@ async function handlePutConfig(request: HttpRequest): Promise<HttpResponseInit> 
 app.http('alertsConfig', {
   methods: ['GET', 'PUT'],
   authLevel: 'anonymous',
-  route: 'alerts-config',
+  route: 'api/alerts-config',
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     // Validate JWT
     const auth = await validateRequest(request);
