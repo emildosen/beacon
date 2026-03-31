@@ -2,10 +2,10 @@ import { app, InvocationContext, Timer } from '@azure/functions';
 import { getAuditEvents } from '../lib/managementApi.js';
 import { getSignIns, getSecurityAlerts, getOrganizationName } from '../lib/graph.js';
 import { evaluateRules, getEventId, getEventSummary } from '../lib/rules.js';
-import { writeAlerts } from '../lib/logAnalytics.js';
+import { writeAlerts, writeLogs } from '../lib/logAnalytics.js';
 import { sendTeamsAlerts } from '../lib/teams.js';
 import { getClients, updateClientStatus, getRules, activateClient, incrementClientRetry, deleteClient, PLACEHOLDER_TENANT_ID } from '../lib/config.js';
-import { Alert, AuditEvent, SignInLog, SecurityAlert, RuleSource, Client, Rule, ClientStatus } from '../lib/types.js';
+import { Alert, LogEntry, AuditEvent, SignInLog, SecurityAlert, RuleSource, Client, Rule, ClientStatus } from '../lib/types.js';
 import {
   isDuplicate,
   recordAlert,
@@ -34,9 +34,10 @@ app.timer('pollAuditLogs', {
     context.log(`Processing ${clients.length} clients against ${rules.length} rules (${pendingClients.length} pending)`);
 
     // Verify pending clients
-    await verifyPendingClients(pendingClients, now, context);
+    const pendingLogs = await verifyPendingClients(pendingClients, now, context);
 
     const allAlerts: Alert[] = [];
+    const allLogs: LogEntry[] = [...pendingLogs];
     let totalEvents = 0;
 
     // Process each client sequentially to avoid rate limiting
@@ -54,10 +55,25 @@ app.timer('pollAuditLogs', {
       }
       context.log(`Processing ${client.name}`);
 
+      const startTime = Date.now();
       try {
-        const { alerts, eventCount } = await processClient(client, rules, since, context);
+        const { alerts, eventCount, auditEventCount, signInCount, securityAlertCount } = await processClient(client, rules, since, context);
         allAlerts.push(...alerts);
         totalEvents += eventCount;
+
+        allLogs.push({
+          TimeGenerated: now.toISOString(),
+          Type: 'sync',
+          ClientTenantId: client.tenantId,
+          ClientTenantName: client.name,
+          Status: 'success',
+          Message: '',
+          AuditEvents: auditEventCount,
+          SignIns: signInCount,
+          SecurityAlerts: securityAlertCount,
+          AlertsGenerated: alerts.length,
+          DurationMs: Date.now() - startTime,
+        });
 
         // Update status on success
         await updateClientStatus(client.tenantId, 'success');
@@ -65,6 +81,16 @@ app.timer('pollAuditLogs', {
         const { status, message } = parseClientError(error);
         context.error(`Failed to process client ${client.name}: ${message}`);
         await updateClientStatus(client.tenantId, status, message);
+
+        allLogs.push({
+          TimeGenerated: now.toISOString(),
+          Type: 'sync',
+          ClientTenantId: client.tenantId,
+          ClientTenantName: client.name,
+          Status: status,
+          Message: message,
+          DurationMs: Date.now() - startTime,
+        });
       }
     }
 
@@ -80,6 +106,15 @@ app.timer('pollAuditLogs', {
         await sendTeamsAlerts(allAlerts, context);
       } catch (error) {
         context.error('Failed to send Teams notification:', error);
+      }
+    }
+
+    // Write sync and system logs to Log Analytics
+    if (allLogs.length > 0) {
+      try {
+        await writeLogs(allLogs, context);
+      } catch (error) {
+        context.error('Failed to write logs to Log Analytics:', error);
       }
     }
 
@@ -99,9 +134,8 @@ async function processClient(
   rules: Rule[],
   since: Date,
   context: InvocationContext
-): Promise<{ alerts: Alert[]; eventCount: number }> {
+): Promise<{ alerts: Alert[]; eventCount: number; auditEventCount: number; signInCount: number; securityAlertCount: number }> {
   const alerts: Alert[] = [];
-  let eventCount = 0;
 
   const [auditEvents, signIns, securityAlerts] = await Promise.all([
     getAuditEvents(client.tenantId, since, context),
@@ -110,7 +144,6 @@ async function processClient(
   ]);
 
   // Process audit events
-  eventCount += auditEvents.length;
   for (const event of auditEvents) {
     const matchedRule = evaluateRules(event, 'AuditLog', rules, client.tenantId);
     if (matchedRule) {
@@ -120,7 +153,6 @@ async function processClient(
   }
 
   // Process sign-ins
-  eventCount += signIns.length;
   for (const event of signIns) {
     const matchedRule = evaluateRules(event, 'SignIn', rules, client.tenantId);
     if (matchedRule) {
@@ -130,7 +162,6 @@ async function processClient(
   }
 
   // Process security alerts
-  eventCount += securityAlerts.length;
   for (const event of securityAlerts) {
     const matchedRule = evaluateRules(event, 'SecurityAlert', rules, client.tenantId);
     if (matchedRule) {
@@ -139,7 +170,13 @@ async function processClient(
     }
   }
 
-  return { alerts, eventCount };
+  return {
+    alerts,
+    eventCount: auditEvents.length + signIns.length + securityAlerts.length,
+    auditEventCount: auditEvents.length,
+    signInCount: signIns.length,
+    securityAlertCount: securityAlerts.length,
+  };
 }
 
 /**
@@ -231,13 +268,16 @@ const MAX_PENDING_RETRIES = PENDING_RETRY_DELAYS.length;
 
 /**
  * Verify pending clients by attempting a Graph API call
- * Follows a retry schedule, deletes and logs an alert if all retries are exhausted
+ * Follows a retry schedule, deletes and logs if all retries are exhausted
+ * Returns log entries for system events
  */
 async function verifyPendingClients(
   pendingClients: Client[],
   now: Date,
   context: InvocationContext
-): Promise<void> {
+): Promise<LogEntry[]> {
+  const logs: LogEntry[] = [];
+
   for (const client of pendingClients) {
     const retryCount = client.retryCount ?? 0;
     const createdAt = client.createdAt ? new Date(client.createdAt) : now;
@@ -249,30 +289,19 @@ async function verifyPendingClients(
       continue;
     }
 
-    // All retries exhausted — delete and alert
+    // All retries exhausted — delete and log
     if (retryCount >= MAX_PENDING_RETRIES) {
       context.warn(`Pending client ${client.tenantId} failed verification after ${MAX_PENDING_RETRIES} attempts, removing`);
       await deleteClient(client.tenantId);
 
-      try {
-        const alert: Alert = {
-          TimeGenerated: now.toISOString(),
-          TimeProcessed: now.toISOString(),
-          ClientTenantId: client.tenantId,
-          ClientTenantName: client.tenantId,
-          User: '',
-          RuleName: 'Pending client verification failed',
-          Severity: 'High',
-          Description: `Tenant ${client.tenantId} failed Graph API verification after ${MAX_PENDING_RETRIES} attempts and was removed. This may indicate an invalid consent or a probing attempt.`,
-          SourceType: 'AuditLog',
-          SourceEventId: `pending-verification-${client.tenantId}`,
-          ShouldNotify: true,
-        };
-        await writeAlerts([alert], context);
-        await sendTeamsAlerts([alert], context);
-      } catch (err) {
-        context.error(`Failed to log alert for removed pending client ${client.tenantId}:`, err);
-      }
+      logs.push({
+        TimeGenerated: now.toISOString(),
+        Type: 'system',
+        ClientTenantId: client.tenantId,
+        ClientTenantName: client.tenantId,
+        Status: 'error',
+        Message: `Tenant failed Graph API verification after ${MAX_PENDING_RETRIES} attempts and was removed. This may indicate an invalid consent or a probing attempt.`,
+      });
       continue;
     }
 
@@ -281,6 +310,15 @@ async function verifyPendingClients(
       const organizationName = await getOrganizationName(client.tenantId);
       await activateClient(client.tenantId, organizationName);
       context.log(`Verified and activated client: ${organizationName} (${client.tenantId})`);
+
+      logs.push({
+        TimeGenerated: now.toISOString(),
+        Type: 'system',
+        ClientTenantId: client.tenantId,
+        ClientTenantName: organizationName,
+        Status: 'success',
+        Message: `Tenant "${organizationName}" has been verified and added for monitoring.`,
+      });
     } catch (err) {
       const nextRetry = retryCount + 1;
       const message = `Verification attempt ${nextRetry}/${MAX_PENDING_RETRIES} failed: ${err instanceof Error ? err.message : String(err)}`;
@@ -288,6 +326,8 @@ async function verifyPendingClients(
       await incrementClientRetry(client.tenantId, nextRetry, message);
     }
   }
+
+  return logs;
 }
 
 /**

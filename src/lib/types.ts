@@ -203,6 +203,23 @@ export interface AlertsConfig {
   enabled: boolean;
 }
 
+// Log entry for Beacon_Log_CL table (sync results and system events)
+export type LogType = 'sync' | 'system';
+
+export interface LogEntry {
+  TimeGenerated: string;
+  Type: LogType;
+  ClientTenantId: string;
+  ClientTenantName: string;
+  Status: string;
+  Message: string;
+  AuditEvents?: number;
+  SignIns?: number;
+  SecurityAlerts?: number;
+  AlertsGenerated?: number;
+  DurationMs?: number;
+}
+
 // Severity level ordering for comparison
 export const SEVERITY_ORDER: Record<Severity, number> = {
   Low: 1,

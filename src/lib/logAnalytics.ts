@@ -1,9 +1,10 @@
 import { LogsIngestionClient } from '@azure/monitor-ingestion';
 import { InvocationContext } from '@azure/functions';
 import { getMspCredential } from './auth.js';
-import { Alert } from './types.js';
+import { Alert, LogEntry } from './types.js';
 
-const STREAM_NAME = 'Custom-Beacon_Alerts_CL';
+const ALERTS_STREAM = 'Custom-Beacon_Alerts_CL';
+const LOG_STREAM = 'Custom-Beacon_Log_CL';
 
 let clientInstance: LogsIngestionClient | null = null;
 
@@ -40,9 +41,33 @@ export async function writeAlerts(
   const client = getClient();
 
   try {
-    await client.upload(ruleId, STREAM_NAME, alerts as unknown as Record<string, unknown>[]);
+    await client.upload(ruleId, ALERTS_STREAM, alerts as unknown as Record<string, unknown>[]);
   } catch (error) {
     context.error('Error writing alerts to Log Analytics:', error);
+    throw error;
+  }
+}
+
+/**
+ * Writes log entries to Beacon_Log_CL custom table via Data Collection Rule
+ */
+export async function writeLogs(
+  logs: LogEntry[],
+  context: InvocationContext
+): Promise<void> {
+  if (logs.length === 0) return;
+
+  const ruleId = process.env.LOG_ANALYTICS_RULE_ID;
+  if (!ruleId) {
+    throw new Error('Missing required environment variable: LOG_ANALYTICS_RULE_ID');
+  }
+
+  const client = getClient();
+
+  try {
+    await client.upload(ruleId, LOG_STREAM, logs as unknown as Record<string, unknown>[]);
+  } catch (error) {
+    context.error('Error writing logs to Log Analytics:', error);
     throw error;
   }
 }

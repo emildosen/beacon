@@ -53,6 +53,7 @@ var _logAnalyticsWorkspaceName = !empty(logAnalyticsWorkspaceName) ? logAnalytic
 var _dataCollectionEndpointName = !empty(dataCollectionEndpointName) ? dataCollectionEndpointName : 'dce-${appNameLower}'
 var _dataCollectionRuleName = !empty(dataCollectionRuleName) ? dataCollectionRuleName : 'dcr-${appNameLower}'
 var _customTableName = 'Beacon_Alerts'
+var _logTableName = 'Beacon_Log'
 var _appInsightsName = !empty(appInsightsName) ? appInsightsName : 'ai-${appNameLower}'
 
 // Multi-tenant App Registration
@@ -196,6 +197,31 @@ resource customTable 'Microsoft.OperationalInsights/workspaces/tables@2022-10-01
   }
 }
 
+// Custom Table for operational logs (sync results and system events)
+resource logTable 'Microsoft.OperationalInsights/workspaces/tables@2022-10-01' = {
+  parent: logAnalyticsWorkspace
+  name: '${_logTableName}_CL'
+  properties: {
+    schema: {
+      name: '${_logTableName}_CL'
+      columns: [
+        { name: 'TimeGenerated', type: 'datetime', description: 'When the event occurred' }
+        { name: 'Type', type: 'string', description: 'Log type (sync, system)' }
+        { name: 'ClientTenantId', type: 'string', description: 'Client tenant ID' }
+        { name: 'ClientTenantName', type: 'string', description: 'Client tenant display name' }
+        { name: 'Status', type: 'string', description: 'Result status (success, error, pending)' }
+        { name: 'Message', type: 'string', description: 'Log message or error details' }
+        { name: 'AuditEvents', type: 'int', description: 'Number of audit events fetched' }
+        { name: 'SignIns', type: 'int', description: 'Number of sign-in logs fetched' }
+        { name: 'SecurityAlerts', type: 'int', description: 'Number of security alerts fetched' }
+        { name: 'AlertsGenerated', type: 'int', description: 'Number of alerts generated' }
+        { name: 'DurationMs', type: 'int', description: 'Processing duration in milliseconds' }
+      ]
+    }
+    retentionInDays: 30
+  }
+}
+
 // Data Collection Rule
 resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
   name: _dataCollectionRuleName
@@ -219,6 +245,21 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' 
           { name: 'ShouldNotify', type: 'boolean' }
         ]
       }
+      'Custom-${_logTableName}_CL': {
+        columns: [
+          { name: 'TimeGenerated', type: 'datetime' }
+          { name: 'Type', type: 'string' }
+          { name: 'ClientTenantId', type: 'string' }
+          { name: 'ClientTenantName', type: 'string' }
+          { name: 'Status', type: 'string' }
+          { name: 'Message', type: 'string' }
+          { name: 'AuditEvents', type: 'int' }
+          { name: 'SignIns', type: 'int' }
+          { name: 'SecurityAlerts', type: 'int' }
+          { name: 'AlertsGenerated', type: 'int' }
+          { name: 'DurationMs', type: 'int' }
+        ]
+      }
     }
     destinations: {
       logAnalytics: [
@@ -235,9 +276,15 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' 
         transformKql: 'source'
         outputStream: 'Custom-${_customTableName}_CL'
       }
+      {
+        streams: ['Custom-${_logTableName}_CL']
+        destinations: ['law-destination']
+        transformKql: 'source'
+        outputStream: 'Custom-${_logTableName}_CL'
+      }
     ]
   }
-  dependsOn: [customTable]
+  dependsOn: [customTable, logTable]
 }
 
 // App Service Plan (Flex Consumption)
