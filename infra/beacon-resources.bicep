@@ -206,7 +206,7 @@ resource logTable 'Microsoft.OperationalInsights/workspaces/tables@2022-10-01' =
       name: '${_logTableName}_CL'
       columns: [
         { name: 'TimeGenerated', type: 'datetime', description: 'When the event occurred' }
-        { name: 'Type', type: 'string', description: 'Log type (sync, system)' }
+        { name: 'LogType', type: 'string', description: 'Log type (sync, system)' }
         { name: 'ClientTenantId', type: 'string', description: 'Client tenant ID' }
         { name: 'ClientTenantName', type: 'string', description: 'Client tenant display name' }
         { name: 'Status', type: 'string', description: 'Result status (success, error, pending)' }
@@ -248,7 +248,7 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' 
       'Custom-${_logTableName}_CL': {
         columns: [
           { name: 'TimeGenerated', type: 'datetime' }
-          { name: 'Type', type: 'string' }
+          { name: 'LogType', type: 'string' }
           { name: 'ClientTenantId', type: 'string' }
           { name: 'ClientTenantName', type: 'string' }
           { name: 'Status', type: 'string' }

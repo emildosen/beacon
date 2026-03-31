@@ -208,7 +208,7 @@ export type LogType = 'sync' | 'system';
 
 export interface LogEntry {
   TimeGenerated: string;
-  Type: LogType;
+  LogType: LogType;
   ClientTenantId: string;
   ClientTenantName: string;
   Status: string;

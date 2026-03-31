@@ -63,7 +63,7 @@ app.timer('pollAuditLogs', {
 
         allLogs.push({
           TimeGenerated: now.toISOString(),
-          Type: 'sync',
+          LogType: 'sync',
           ClientTenantId: client.tenantId,
           ClientTenantName: client.name,
           Status: 'success',
@@ -84,7 +84,7 @@ app.timer('pollAuditLogs', {
 
         allLogs.push({
           TimeGenerated: now.toISOString(),
-          Type: 'sync',
+          LogType: 'sync',
           ClientTenantId: client.tenantId,
           ClientTenantName: client.name,
           Status: status,
@@ -296,7 +296,7 @@ async function verifyPendingClients(
 
       logs.push({
         TimeGenerated: now.toISOString(),
-        Type: 'system',
+        LogType: 'system',
         ClientTenantId: client.tenantId,
         ClientTenantName: client.tenantId,
         Status: 'error',
@@ -313,7 +313,7 @@ async function verifyPendingClients(
 
       logs.push({
         TimeGenerated: now.toISOString(),
-        Type: 'system',
+        LogType: 'system',
         ClientTenantId: client.tenantId,
         ClientTenantName: organizationName,
         Status: 'success',
