@@ -1,6 +1,6 @@
 import { LogsIngestionClient } from '@azure/monitor-ingestion';
 import { InvocationContext } from '@azure/functions';
-import { getMspCredential } from './auth.js';
+import { DefaultAzureCredential } from '@azure/identity';
 import { Alert, LogEntry } from './types.js';
 
 const ALERTS_STREAM = 'Custom-Beacon_Alerts_CL';
@@ -15,7 +15,7 @@ function getClient(): LogsIngestionClient {
       throw new Error('Missing required environment variable: LOG_ANALYTICS_ENDPOINT');
     }
 
-    const credential = getMspCredential();
+    const credential = new DefaultAzureCredential();
     clientInstance = new LogsIngestionClient(endpoint, credential);
   }
   return clientInstance;
