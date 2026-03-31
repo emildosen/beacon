@@ -10,14 +10,6 @@ param location string
 @description('Application name (used for app registration and resources)')
 param appName string = 'Beacon'
 
-@description('App Service Plan SKU')
-@allowed([
-  'Y1'
-  'EP1'
-  'B1'
-])
-param appPlanSku string = 'B1'
-
 @description('Enable federated authentication for the Function App managed identity')
 param enableFederatedAuth bool = true
 
@@ -44,12 +36,6 @@ param dataCollectionRuleName string = ''
 param appInsightsName string = ''
 
 // Variables
-var skuMap = {
-  Y1: { name: 'Y1', tier: 'Dynamic' }
-  EP1: { name: 'EP1', tier: 'ElasticPremium' }
-  B1: { name: 'B1', tier: 'Basic' }
-}
-var selectedSku = skuMap[appPlanSku]
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var appNameLower = toLower(appName)
 var cleanName = replace(appNameLower, '-', '')
@@ -125,6 +111,15 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01'
 resource configContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   parent: blobService
   name: 'config'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// Deployment container for Flex Consumption
+resource deploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'deploymentpackage'
   properties: {
     publicAccess: 'None'
   }
@@ -235,60 +230,63 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' 
   dependsOn: [customTable]
 }
 
-// App Service Plan
-resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
+// App Service Plan (Flex Consumption)
+resource appServicePlan 'Microsoft.Web/serverfarms@2024-04-01' = {
   name: _appServicePlanName
   location: location
   sku: {
-    name: selectedSku.name
-    tier: selectedSku.tier
+    name: 'FC1'
+    tier: 'FlexConsumption'
   }
   properties: {
-    reserved: false
+    reserved: true
   }
 }
 
 // Function App with System-Assigned Managed Identity
-resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
+resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   name: _functionAppName
   location: location
-  kind: 'functionapp'
+  kind: 'functionapp,linux'
   identity: {
     type: 'SystemAssigned'
   }
   properties: {
     serverFarmId: appServicePlan.id
+    functionAppConfig: {
+      deployment: {
+        storage: {
+          type: 'blobContainer'
+          value: '${storageAccount.properties.primaryEndpoints.blob}deploymentpackage'
+          authentication: {
+            type: 'SystemAssignedIdentity'
+          }
+        }
+      }
+      scaleAndConcurrency: {
+        instanceMemoryMB: 2048
+        maximumInstanceCount: 100
+      }
+      runtime: {
+        name: 'node'
+        version: '22'
+      }
+    }
     siteConfig: {
-      alwaysOn: appPlanSku != 'Y1'
       cors: {
         allowedOrigins: [
           'https://portal.azure.com'
         ]
       }
       appSettings: [
+        // Storage via managed identity
         {
-          name: 'AzureWebJobsStorage'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
-        }
-        {
-          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
-        }
-        {
-          name: 'WEBSITE_CONTENTSHARE'
-          value: toLower(_functionAppName)
+          name: 'AzureWebJobsStorage__accountName'
+          value: storageAccount.name
         }
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'
           value: '~4'
-        }
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'node'
-        }
-        {
-          name: 'WEBSITE_NODE_DEFAULT_VERSION'
-          value: '~22'
         }
         // Azure SDK environment variables for managed identity with federated credential
         {
@@ -321,14 +319,10 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           name: 'LOG_ANALYTICS_STREAM'
           value: 'Custom-${_customTableName}_CL'
         }
-        // Storage for alert deduplication
+        // Storage account name for table access via managed identity
         {
-          name: 'AZURE_STORAGE_CONNECTION_STRING'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
-        }
-        {
-          name: 'WEBSITE_RUN_FROM_PACKAGE'
-          value: 'https://github.com/emildosen/beacon/releases/latest/download/beacon.zip'
+          name: 'AZURE_STORAGE_ACCOUNT_NAME'
+          value: storageAccount.name
         }
         {
           name: 'AzureWebJobsFeatureFlags'
@@ -356,6 +350,41 @@ resource federatedCredential 'Microsoft.Graph/applications/federatedIdentityCred
 }
 
 
+// Role assignment: Storage Blob Data Owner for deployment and blob access via managed identity
+resource storageBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storageAccount.id, functionApp.id, 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')
+  scope: storageAccount
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b') // Storage Blob Data Owner
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Role assignment: Storage Table Data Contributor for alert deduplication and config via managed identity
+resource storageTableRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storageAccount.id, functionApp.id, '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
+  scope: storageAccount
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3') // Storage Table Data Contributor
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Workbook: Beacon Alerts Dashboard
+resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = {
+  name: guid(resourceGroup().id, 'beacon-alerts-workbook')
+  location: location
+  kind: 'shared'
+  properties: {
+    displayName: 'Beacon Alerts'
+    category: 'workbook'
+    sourceId: logAnalyticsWorkspace.id
+    serializedData: loadTextContent('../workbooks/beacon-alerts.json')
+  }
+}
+
 // Role assignment: Monitoring Metrics Publisher for Function App to write to DCR
 resource dcrRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(dataCollectionRule.id, functionApp.id, '3913510d-42f4-4e42-8a64-420c390055eb')
@@ -375,7 +404,7 @@ output functionAppPrincipalId string = functionApp.identity.principalId
 output appRegistrationAppId string = appRegistration.appId
 output appRegistrationName string = appRegistration.displayName
 output storageAccountName string = storageAccount.name
-output adminConsentUrl string = '${environment().authentication.loginEndpoint}${subscription().tenantId}/adminconsent?client_id=${appRegistration.appId}'
+output adminConsentUrl string = '${environment().authentication.loginEndpoint}common/adminconsent?client_id=${appRegistration.appId}'
 output logAnalyticsWorkspaceId string = logAnalyticsWorkspace.properties.customerId
 output logAnalyticsWorkspaceName string = logAnalyticsWorkspace.name
 output dataCollectionEndpointUrl string = dataCollectionEndpoint.properties.logsIngestion.endpoint

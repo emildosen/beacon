@@ -167,11 +167,11 @@ The following tables are auto-created on first run:
 | LOG_ANALYTICS_ENDPOINT | (DCE Logs Ingestion URI) |
 | LOG_ANALYTICS_RULE_ID | (DCR Immutable ID) |
 | LOG_ANALYTICS_STREAM | Custom-Beacon_Alerts_CL |
-| AZURE_STORAGE_CONNECTION_STRING | (storage account connection string) |
+| AZURE_STORAGE_ACCOUNT_NAME | (storage account name) |
 
 3. Save
 
-> **Note:** `AzureWebJobsStorage` is created automatically when you create the Function App and link a storage account. It's required for the Functions runtime. `AZURE_STORAGE_CONNECTION_STRING` is a separate setting used by Beacon for alert deduplication tables.
+> **Note:** `AzureWebJobsStorage__accountName` is used by the Functions runtime to access storage via managed identity. `AZURE_STORAGE_ACCOUNT_NAME` is used by Beacon for alert deduplication and config tables, also via managed identity. Ensure the Function App's managed identity has **Storage Blob Data Owner** and **Storage Table Data Contributor** roles on the storage account.
 
 ## Step 8: Admin Consent for Client Tenants
 

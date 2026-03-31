@@ -13,14 +13,6 @@ param location string = deployment().location
 @description('Application name (used for app registration and resources)')
 param appName string = 'Beacon'
 
-@description('App Service Plan SKU')
-@allowed([
-  'Y1'
-  'EP1'
-  'B1'
-])
-param appPlanSku string = 'B1'
-
 @description('Enable federated authentication for the Function App managed identity')
 param enableFederatedAuth bool = true
 
@@ -59,7 +51,6 @@ module beaconResources 'beacon-resources.bicep' = {
   params: {
     location: location
     appName: appName
-    appPlanSku: appPlanSku
     enableFederatedAuth: enableFederatedAuth
     functionAppName: functionAppName
     storageAccountName: storageAccountName

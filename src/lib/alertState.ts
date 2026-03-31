@@ -1,4 +1,5 @@
 import { TableClient, TableServiceClient } from '@azure/data-tables';
+import { DefaultAzureCredential } from '@azure/identity';
 import { createHash } from 'crypto';
 
 const DEDUP_TABLE = 'AlertDedup';
@@ -9,15 +10,9 @@ const NOTIFICATION_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 let dedupClient: TableClient | null = null;
 let notificationClient: TableClient | null = null;
 
-/**
- * Get connection string from environment
- */
-function getConnectionString(): string {
+function isLocalDev(): boolean {
   const connStr = process.env.AZURE_STORAGE_CONNECTION_STRING;
-  if (!connStr) {
-    throw new Error('AZURE_STORAGE_CONNECTION_STRING environment variable not set');
-  }
-  return connStr;
+  return !!connStr && (connStr.includes('127.0.0.1') || connStr.includes('UseDevelopmentStorage'));
 }
 
 /**
@@ -26,15 +21,29 @@ function getConnectionString(): string {
 async function ensureTablesExist(): Promise<void> {
   if (dedupClient && notificationClient) return;
 
-  const connStr = getConnectionString();
-  const allowInsecureConnection = connStr.includes('127.0.0.1') || connStr.includes('UseDevelopmentStorage');
-  const serviceClient = TableServiceClient.fromConnectionString(connStr, { allowInsecureConnection });
+  let serviceClient: TableServiceClient;
+
+  if (isLocalDev()) {
+    const connStr = process.env.AZURE_STORAGE_CONNECTION_STRING!;
+    serviceClient = TableServiceClient.fromConnectionString(connStr, { allowInsecureConnection: true });
+    dedupClient = TableClient.fromConnectionString(connStr, DEDUP_TABLE, { allowInsecureConnection: true });
+    notificationClient = TableClient.fromConnectionString(connStr, NOTIFICATION_TABLE, { allowInsecureConnection: true });
+  } else {
+    const accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME;
+    if (!accountName) {
+      throw new Error('AZURE_STORAGE_ACCOUNT_NAME environment variable not set');
+    }
+    const credential = new DefaultAzureCredential();
+    const tableUrl = `https://${accountName}.table.core.windows.net`;
+    serviceClient = new TableServiceClient(tableUrl, credential);
+    dedupClient = new TableClient(tableUrl, DEDUP_TABLE, credential);
+    notificationClient = new TableClient(tableUrl, NOTIFICATION_TABLE, credential);
+  }
 
   // Create tables if they don't exist
   try {
     await serviceClient.createTable(DEDUP_TABLE);
   } catch (e: unknown) {
-    // Table already exists is OK
     if ((e as { statusCode?: number }).statusCode !== 409) throw e;
   }
 
@@ -43,9 +52,6 @@ async function ensureTablesExist(): Promise<void> {
   } catch (e: unknown) {
     if ((e as { statusCode?: number }).statusCode !== 409) throw e;
   }
-
-  dedupClient = TableClient.fromConnectionString(connStr, DEDUP_TABLE, { allowInsecureConnection });
-  notificationClient = TableClient.fromConnectionString(connStr, NOTIFICATION_TABLE, { allowInsecureConnection });
 }
 
 /**

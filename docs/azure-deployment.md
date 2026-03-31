@@ -10,16 +10,17 @@ The deployment template creates:
 |----------|---------|
 | Resource Group | Container for all Beacon resources |
 | App Registration | Multi-tenant app for accessing client M365 data |
-| Function App | Runs the Beacon polling service |
-| App Service Plan | Hosting plan for the Function App |
-| Storage Account | Required by Azure Functions and alert deduplication |
+| Function App (Flex Consumption) | Runs the Beacon polling service (Linux, scales to zero) |
+| App Service Plan | Flex Consumption hosting plan |
+| Storage Account | Required by Azure Functions, config, and alert deduplication |
 | Federated Credential | Secure authentication (no secrets needed) |
 | Log Analytics Workspace | Stores alerts for querying and dashboards |
 | Application Insights | Function App logging and monitoring |
 | Data Collection Endpoint | Ingestion endpoint for Log Analytics |
 | Data Collection Rule | Routes alerts to the custom table |
 | Custom Table (Beacon_Alerts_CL) | Schema for alert data |
-| Role Assignment | Allows Function App to write to Log Analytics |
+| Workbook (Beacon Alerts) | Dashboard for alert visualisation in Log Analytics |
+| Role Assignments | Storage Blob Data Owner, Storage Table Data Contributor, Monitoring Metrics Publisher |
 
 ## Prerequisites
 
@@ -82,7 +83,6 @@ You can customise the deployment with these parameters:
 |-----------|---------|-------------|
 | `resourceGroupName` | `rg-beacon` | Name for the resource group |
 | `appName` | `Beacon` | Name used for the app registration and resources |
-| `appPlanSku` | `B1` | Hosting plan tier (Y1, EP1, B1) |
 | `enableFederatedAuth` | `true` | Enable federated authentication for the Function App managed identity |
 
 #### Resource Names
@@ -132,17 +132,9 @@ az deployment sub create \
     enableFederatedAuth=false
 ```
 
-### Hosting Plan Options
+### Hosting Plan
 
-::: warning Cost Warning
-The default `B1` plan costs approximately **$55 USD/month**. This is the recommended option for reliable deployments.
-:::
-
-| SKU | Type | Best For |
-|-----|------|----------|
-| `B1` | Basic | **Recommended.** Reliable builds and consistent performance. |
-| `Y1` | Consumption | Lower cost (pay-per-use), but deployment builds may timeout. |
-| `EP1` | Elastic Premium | High volume or low-latency requirements. Always warm. |
+Beacon deploys on the **Flex Consumption** plan (`FC1`). This is a serverless plan that scales to zero when idle and only charges for actual execution time. All storage access uses **managed identity** — no connection strings or secrets are stored in app settings.
 
 ## Step 4: Note the Outputs
 
@@ -239,11 +231,11 @@ The Graph extension requires Bicep version 0.29.0 or later.
 
 ### Function App shows no functions
 
-The code is deployed from GitHub. If functions aren't appearing:
+The Flex Consumption plan deploys code from a blob storage container. If functions aren't appearing:
 
 1. Open the Function App in Azure Portal
-2. Go to **Deployment Center**
-3. Check the deployment status and logs
+2. Check **Overview** for any deployment errors
+3. Verify the managed identity has **Storage Blob Data Owner** on the storage account
 
 ### No data in Log Analytics
 
@@ -255,11 +247,7 @@ If alerts aren't appearing in the `Beacon_Alerts_CL` table:
 
 ## Updating Beacon
 
-To update to the latest version:
-
-1. Open the Function App in Azure Portal
-2. Go to **Deployment Center**
-3. Click **Sync** to pull the latest code from GitHub
+To update to the latest version, re-deploy the code package to the `deploymentpackage` blob container in the storage account, or re-run the Bicep deployment to pick up any infrastructure changes.
 
 ## Clean Up
 

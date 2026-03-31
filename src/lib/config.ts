@@ -3,6 +3,7 @@ import { join, dirname, relative } from 'path';
 import { fileURLToPath } from 'url';
 import { TableClient, TableServiceClient } from '@azure/data-tables';
 import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
+import { DefaultAzureCredential } from '@azure/identity';
 import { Rule, Client, AlertsConfig, Severity, ClientStatus } from './types.js';
 
 // Get the project root directory
@@ -28,14 +29,22 @@ type Logger = {
 };
 
 /**
- * Get connection string from environment
+ * Check if running against local dev storage (Azurite)
  */
-function getConnectionString(): string {
+function isLocalDev(): boolean {
   const connStr = process.env.AZURE_STORAGE_CONNECTION_STRING;
-  if (!connStr) {
-    throw new Error('AZURE_STORAGE_CONNECTION_STRING environment variable not set');
+  return !!connStr && (connStr.includes('127.0.0.1') || connStr.includes('UseDevelopmentStorage'));
+}
+
+/**
+ * Get the storage account name from environment
+ */
+function getStorageAccountName(): string {
+  const name = process.env.AZURE_STORAGE_ACCOUNT_NAME;
+  if (!name && !isLocalDev()) {
+    throw new Error('AZURE_STORAGE_ACCOUNT_NAME environment variable not set');
   }
-  return connStr;
+  return name || '';
 }
 
 /**
@@ -54,26 +63,34 @@ export const PLACEHOLDER_TENANT_ID = '00000000-0000-0000-0000-000000000000';
 async function ensureTablesExist(): Promise<void> {
   if (clientsTableClient && alertsTableClient) return;
 
-  const connStr = getConnectionString();
-  const allowInsecureConnection = connStr.includes('127.0.0.1') || connStr.includes('UseDevelopmentStorage');
-  const serviceClient = TableServiceClient.fromConnectionString(connStr, { allowInsecureConnection });
+  let serviceClient: TableServiceClient;
 
-  // Create Clients table if it doesn't exist
+  if (isLocalDev()) {
+    const connStr = process.env.AZURE_STORAGE_CONNECTION_STRING!;
+    serviceClient = TableServiceClient.fromConnectionString(connStr, { allowInsecureConnection: true });
+    clientsTableClient = TableClient.fromConnectionString(connStr, CLIENTS_TABLE, { allowInsecureConnection: true });
+    alertsTableClient = TableClient.fromConnectionString(connStr, ALERTS_TABLE, { allowInsecureConnection: true });
+  } else {
+    const accountName = getStorageAccountName();
+    const credential = new DefaultAzureCredential();
+    const tableUrl = `https://${accountName}.table.core.windows.net`;
+    serviceClient = new TableServiceClient(tableUrl, credential);
+    clientsTableClient = new TableClient(tableUrl, CLIENTS_TABLE, credential);
+    alertsTableClient = new TableClient(tableUrl, ALERTS_TABLE, credential);
+  }
+
+  // Create tables if they don't exist
   try {
     await serviceClient.createTable(CLIENTS_TABLE);
   } catch (e: unknown) {
     if ((e as { statusCode?: number }).statusCode !== 409) throw e;
   }
 
-  // Create AlertsConfig table if it doesn't exist
   try {
     await serviceClient.createTable(ALERTS_TABLE);
   } catch (e: unknown) {
     if ((e as { statusCode?: number }).statusCode !== 409) throw e;
   }
-
-  clientsTableClient = TableClient.fromConnectionString(connStr, CLIENTS_TABLE, { allowInsecureConnection });
-  alertsTableClient = TableClient.fromConnectionString(connStr, ALERTS_TABLE, { allowInsecureConnection });
 
   // Seed placeholder data if tables are empty (for Azure Storage Explorer column visibility)
   await seedPlaceholderDataIfEmpty();
@@ -133,8 +150,18 @@ async function seedPlaceholderDataIfEmpty(): Promise<void> {
 async function ensureContainerExists(): Promise<ContainerClient> {
   if (configContainerClient) return configContainerClient;
 
-  const connStr = getConnectionString();
-  const blobService = BlobServiceClient.fromConnectionString(connStr);
+  let blobService: BlobServiceClient;
+
+  if (isLocalDev()) {
+    blobService = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING!);
+  } else {
+    const accountName = getStorageAccountName();
+    blobService = new BlobServiceClient(
+      `https://${accountName}.blob.core.windows.net`,
+      new DefaultAzureCredential()
+    );
+  }
+
   configContainerClient = blobService.getContainerClient(CONFIG_CONTAINER);
 
   // Create container if it doesn't exist
