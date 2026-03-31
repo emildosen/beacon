@@ -10,8 +10,8 @@ The deployment template creates:
 |----------|---------|
 | Resource Group | Container for all Beacon resources |
 | App Registration | Multi-tenant app for accessing client M365 data |
-| Function App (Flex Consumption) | Runs the Beacon polling service (Linux, scales to zero) |
-| App Service Plan | Flex Consumption hosting plan |
+| Function App | Runs the Beacon polling service (Linux, Flex Consumption) |
+| App Service Plan | Flex Consumption serverless hosting plan |
 | Storage Account | Required by Azure Functions, config, and alert deduplication |
 | Federated Credential | Secure authentication (no secrets needed) |
 | Log Analytics Workspace | Stores alerts for querying and dashboards |
@@ -57,7 +57,7 @@ az login
 
 A browser window will open. Sign in with your Azure account. If you have multiple subscriptions, you'll be asked to select one after authenticating.
 
-## Step 3: Deploy
+## Step 3: Deploy Infrastructure
 
 Run the deployment command, replacing the location with your preferred Azure region:
 
@@ -71,6 +71,18 @@ az deployment sub create \
 Common regions include: `australiaeast`, `northeurope`, `westeurope`, `eastus`, `westus2`, `uksouth`, `southeastasia`.
 
 For a full list, run: `az account list-locations -o table`
+:::
+
+## Step 4: Deploy Code
+
+After infrastructure deployment completes, deploy the Beacon code from the latest GitHub release:
+
+```bash
+az functionapp deploy --resource-group $(az deployment sub show --name beacon --query properties.outputs.resourceGroupName.value -o tsv) --name $(az deployment sub show --name beacon --query properties.outputs.functionAppName.value -o tsv) --src-url https://github.com/emildosen/beacon/releases/latest/download/beacon.zip --type zip
+```
+
+::: tip Updating Beacon
+Run the same command above to update to the latest version at any time.
 :::
 
 ### Deployment Parameters
@@ -134,9 +146,9 @@ az deployment sub create \
 
 ### Hosting Plan
 
-Beacon deploys on the **Flex Consumption** plan (`FC1`). This is a serverless plan that scales to zero when idle and only charges for actual execution time. All storage access uses **managed identity** — no connection strings or secrets are stored in app settings.
+Beacon deploys on the **Flex Consumption** plan. This is a serverless plan that scales to zero when idle and only charges for actual execution time. All storage access uses **managed identity** — no connection strings or secrets are stored in app settings.
 
-## Step 4: Note the Outputs
+## Step 5: Note the Outputs
 
 When deployment completes, you'll see output values. Save these for later:
 
@@ -160,7 +172,7 @@ Outputs:
 
 The `adminConsentUrl` is particularly important - you'll need it for onboarding client tenants.
 
-## Step 5: Grant Admin Consent
+## Step 6: Grant Admin Consent
 
 The app registration is created with the required permissions, but admin consent must still be granted.
 
@@ -231,11 +243,12 @@ The Graph extension requires Bicep version 0.29.0 or later.
 
 ### Function App shows no functions
 
-The Flex Consumption plan deploys code from a blob storage container. If functions aren't appearing:
+The code is deployed from GitHub via a deployment script. If functions aren't appearing:
 
 1. Open the Function App in Azure Portal
 2. Check **Overview** for any deployment errors
-3. Verify the managed identity has **Storage Blob Data Owner** on the storage account
+3. In the resource group, check the deployment script resource (`beacon-deploy-code`) for logs
+4. Verify the `deploymentpackage` blob container has `beacon.zip`
 
 ### No data in Log Analytics
 
@@ -247,7 +260,17 @@ If alerts aren't appearing in the `Beacon_Alerts_CL` table:
 
 ## Updating Beacon
 
-To update to the latest version, re-deploy the code package to the `deploymentpackage` blob container in the storage account, or re-run the Bicep deployment to pick up any infrastructure changes.
+Run the deploy code command from [Step 4](#step-4-deploy-code) to update to the latest release:
+
+```bash
+az functionapp deploy \
+  --resource-group rg-beacon \
+  --name <your-function-app-name> \
+  --src-url https://github.com/emildosen/beacon/releases/latest/download/beacon.zip \
+  --type zip
+```
+
+To also update infrastructure, re-run the Bicep deployment from [Step 3](#step-3-deploy-infrastructure).
 
 ## Clean Up
 

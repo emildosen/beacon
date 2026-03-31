@@ -351,6 +351,24 @@ export async function getClients(): Promise<Client[]> {
 }
 
 /**
+ * Add a new client to the Clients table
+ */
+export async function addClient(tenantId: string, name: string): Promise<void> {
+  await ensureTablesExist();
+
+  await clientsTableClient!.upsertEntity(
+    {
+      partitionKey: 'client',
+      rowKey: tenantId,
+      name,
+      status: 'success',
+      statusMessage: 'Added via admin consent',
+    },
+    'Merge'
+  );
+}
+
+/**
  * Update a client's status after a poll run
  */
 export async function updateClientStatus(

@@ -57,6 +57,12 @@ resource appRegistration 'Microsoft.Graph/applications@v1.0' = {
   uniqueName: _appRegistrationName
   signInAudience: 'AzureADMultipleOrgs'
 
+  web: {
+    redirectUris: [
+      'https://${_functionAppName}.azurewebsites.net/api/m365Callback'
+    ]
+  }
+
   // API permissions (admin consent still required manually)
   requiredResourceAccess: [
     // Microsoft Graph
@@ -116,7 +122,7 @@ resource configContainer 'Microsoft.Storage/storageAccounts/blobServices/contain
   }
 }
 
-// Deployment container for Flex Consumption
+// Deployment container (required by Flex Consumption)
 resource deploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   parent: blobService
   name: 'deploymentpackage'
@@ -288,15 +294,6 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           name: 'FUNCTIONS_EXTENSION_VERSION'
           value: '~4'
         }
-        // Azure SDK environment variables for managed identity with federated credential
-        {
-          name: 'AZURE_CLIENT_ID'
-          value: appRegistration.appId
-        }
-        {
-          name: 'AZURE_TENANT_ID'
-          value: subscription().tenantId
-        }
         // Beacon application environment variables
         {
           name: 'TENANT_ID'
@@ -404,7 +401,7 @@ output functionAppPrincipalId string = functionApp.identity.principalId
 output appRegistrationAppId string = appRegistration.appId
 output appRegistrationName string = appRegistration.displayName
 output storageAccountName string = storageAccount.name
-output adminConsentUrl string = '${environment().authentication.loginEndpoint}common/adminconsent?client_id=${appRegistration.appId}'
+output adminConsentUrl string = '${environment().authentication.loginEndpoint}common/adminconsent?client_id=${appRegistration.appId}&redirect_uri=https://${functionApp.properties.defaultHostName}/api/m365Callback'
 output logAnalyticsWorkspaceId string = logAnalyticsWorkspace.properties.customerId
 output logAnalyticsWorkspaceName string = logAnalyticsWorkspace.name
 output dataCollectionEndpointUrl string = dataCollectionEndpoint.properties.logsIngestion.endpoint

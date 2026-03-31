@@ -97,6 +97,21 @@ export async function getSecurityAlerts(
 }
 
 /**
+ * Fetches the organization display name from Graph API
+ * Used to verify tenant access after admin consent
+ */
+export async function getOrganizationName(tenantId: string): Promise<string> {
+  const client = getGraphClient(tenantId);
+  const response = await client.api('/organization').select('displayName').get();
+
+  if (!response.value || response.value.length === 0) {
+    throw new Error('No organization found for tenant');
+  }
+
+  return response.value[0].displayName;
+}
+
+/**
  * Check if an error is an authentication/authorization error that should
  * propagate to update client status (vs transient errors that can be ignored)
  */
