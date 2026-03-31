@@ -4,7 +4,7 @@ import { createHash } from 'crypto';
 
 const DEDUP_TABLE = 'AlertDedup';
 const NOTIFICATION_TABLE = 'NotificationState';
-const DEDUP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const DEDUP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes (covers 5-min poll interval + 5-min overlap window)
 const NOTIFICATION_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 let dedupClient: TableClient | null = null;

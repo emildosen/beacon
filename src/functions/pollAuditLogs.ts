@@ -24,6 +24,7 @@ app.timer('pollAuditLogs', {
     const now = new Date();
     const defaultLookback = 60 * 60 * 1000; // 1 hour for new tenants
     const maxLookback = 6 * 60 * 60 * 1000; // 6 hour max for stale tenants
+    const overlapWindow = 5 * 60 * 1000; // 5 min overlap to catch delayed events
 
     // Preload rules and clients before processing
     const rules = await getRules(context);
@@ -44,10 +45,11 @@ app.timer('pollAuditLogs', {
     for (const client of clients) {
       // Calculate time window:
       // - New tenants (no lastPoll): use default 1 hour lookback
-      // - Existing tenants: use time since lastPoll, capped at 6 hours max
+      // - Existing tenants: use time since lastPoll minus 5 min overlap, capped at 6 hours max
+      // The overlap ensures delayed events are not missed; dedup prevents duplicate alerts
       let since: Date;
       if (client.lastPoll) {
-        const lastPollTime = new Date(client.lastPoll);
+        const lastPollTime = new Date(new Date(client.lastPoll).getTime() - overlapWindow);
         const maxLookbackTime = new Date(now.getTime() - maxLookback);
         since = lastPollTime > maxLookbackTime ? lastPollTime : maxLookbackTime;
       } else {
