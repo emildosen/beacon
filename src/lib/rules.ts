@@ -67,8 +67,12 @@ function matchesOperator(
     case 'NotEquals':
       return String(actualValue).toLowerCase() !== String(expectedValue).toLowerCase();
 
-    case 'Contains':
-      return String(actualValue).toLowerCase().includes(String(expectedValue).toLowerCase());
+    case 'Contains': {
+      const actual = typeof actualValue === 'object' && actualValue !== null
+        ? JSON.stringify(actualValue).toLowerCase()
+        : String(actualValue).toLowerCase();
+      return actual.includes(String(expectedValue).toLowerCase());
+    }
 
     default:
       return false;
