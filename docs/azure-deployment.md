@@ -73,18 +73,6 @@ Common regions include: `australiaeast`, `northeurope`, `westeurope`, `eastus`, 
 For a full list, run: `az account list-locations -o table`
 :::
 
-## Step 4: Deploy Code
-
-After infrastructure deployment completes, deploy the Beacon code from the latest GitHub release:
-
-```bash
-az functionapp deploy --resource-group $(az deployment sub show --name beacon --query properties.outputs.resourceGroupName.value -o tsv) --name $(az deployment sub show --name beacon --query properties.outputs.functionAppName.value -o tsv) --src-url https://github.com/emildosen/beacon/releases/latest/download/beacon.zip --type zip
-```
-
-::: tip Updating Beacon
-Run the same command above to update to the latest version at any time.
-:::
-
 ### Deployment Parameters
 
 You can customise the deployment with these parameters:
@@ -148,7 +136,7 @@ az deployment sub create \
 
 Beacon deploys on the **Flex Consumption** plan. This is a serverless plan that scales to zero when idle and only charges for actual execution time. All storage access uses **managed identity** — no connection strings or secrets are stored in app settings.
 
-## Step 5: Note the Outputs
+## Step 4: Note the Outputs
 
 When deployment completes, you'll see output values. Save these for later:
 
@@ -172,7 +160,7 @@ Outputs:
 
 The `adminConsentUrl` is particularly important - you'll need it for onboarding client tenants.
 
-## Step 6: Grant Admin Consent
+## Step 5: Grant Admin Consent
 
 The app registration is created with the required permissions, but admin consent must still be granted.
 
@@ -260,17 +248,13 @@ If alerts aren't appearing in the `Beacon_Alerts_CL` table:
 
 ## Updating Beacon
 
-Run the deploy code command from [Step 4](#step-4-deploy-code) to update to the latest release:
+Re-run the Bicep deployment from [Step 3](#step-3-deploy-infrastructure). The template automatically downloads and deploys the latest release from GitHub.
 
 ```bash
-az functionapp deploy \
-  --resource-group rg-beacon \
-  --name <your-function-app-name> \
-  --src-url https://github.com/emildosen/beacon/releases/latest/download/beacon.zip \
-  --type zip
+az deployment sub create \
+  --location australiaeast \
+  --template-file beacon.bicep
 ```
-
-To also update infrastructure, re-run the Bicep deployment from [Step 3](#step-3-deploy-infrastructure).
 
 ## Clean Up
 

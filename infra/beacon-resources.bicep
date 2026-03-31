@@ -265,7 +265,8 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           type: 'blobContainer'
           value: '${storageAccount.properties.primaryEndpoints.blob}deploymentpackage'
           authentication: {
-            type: 'SystemAssignedIdentity'
+            type: 'StorageAccountConnectionString'
+            storageAccountConnectionStringName: 'DEPLOYMENT_STORAGE_CONNECTION_STRING'
           }
         }
       }
@@ -329,10 +330,27 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: appInsights.properties.ConnectionString
         }
+        {
+          name: 'DEPLOYMENT_STORAGE_CONNECTION_STRING'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
+        }
       ]
     }
     httpsOnly: true
   }
+}
+
+// Deploy code from GitHub release
+resource functionAppDeploy 'Microsoft.Web/sites/extensions@2022-09-01' = {
+  parent: functionApp
+  name: 'onedeploy'
+  properties: {
+    packageUri: 'https://github.com/emildosen/beacon/releases/latest/download/beacon.zip'
+    remoteBuild: false
+  }
+  dependsOn: [
+    deploymentContainer
+  ]
 }
 
 // Federated Identity Credential - nested inside app registration reference
