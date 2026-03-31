@@ -157,7 +157,8 @@ function expandJsonValue(value: string | null | undefined): string {
 }
 
 function normalizeDirectoryAudit(audit: DirectoryAudit): AuditEvent {
-  const userId = audit.initiatedBy?.user?.userPrincipalName
+  // Actor: prefer the user who initiated, fall back to app name
+  const actor = audit.initiatedBy?.user?.userPrincipalName
     ?? audit.initiatedBy?.app?.displayName
     ?? '';
 
@@ -183,6 +184,19 @@ function normalizeDirectoryAudit(audit: DirectoryAudit): AuditEvent {
     }
   }
 
+  // Extract primary target: first User or Group from targetResources
+  let targetName = '';
+  let targetType = '';
+  if (audit.targetResources) {
+    const primaryTarget = audit.targetResources.find(
+      (t) => t.type === 'User' || t.type === 'Group'
+    );
+    if (primaryTarget) {
+      targetName = primaryTarget.userPrincipalName ?? primaryTarget.displayName ?? '';
+      targetType = primaryTarget.type ?? '';
+    }
+  }
+
   return {
     Id: audit.id,
     RecordType: 8, // AzureActiveDirectory
@@ -194,11 +208,14 @@ function normalizeDirectoryAudit(audit: DirectoryAudit): AuditEvent {
     Workload: 'AzureActiveDirectory',
     ResultStatus: audit.result ?? '',
     ObjectId: audit.targetResources?.[0]?.id ?? '',
-    UserId: userId,
+    UserId: actor,
     ExtendedProperties: extendedProps.length > 0 ? extendedProps : undefined,
     ModifiedProperties: modifiedProps.length > 0 ? modifiedProps : undefined,
     // Preserve original target resources for rules that inspect them
     TargetResources: audit.targetResources,
+    // Target info extracted from targetResources
+    _targetName: targetName,
+    _targetType: targetType,
   } as AuditEvent;
 }
 

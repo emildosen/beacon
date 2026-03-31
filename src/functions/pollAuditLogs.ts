@@ -208,25 +208,25 @@ async function processAlert(
   client: Client,
   context: InvocationContext
 ): Promise<Alert | null> {
-  const user = getEventUser(event, source);
+  const actor = getEventActor(event, source);
 
   // Check 5-min dedup window (based on TimeProcessed, not TimeGenerated)
-  if (await isDuplicate(client.tenantId, rule.name, user)) {
+  if (await isDuplicate(client.tenantId, rule.name, actor)) {
     return null;
   }
-  await recordAlert(client.tenantId, rule.name, user);
+  await recordAlert(client.tenantId, rule.name, actor);
 
   // Create the alert (will be written to Log Analytics)
   const alert = createAlert(event, source, rule, client);
 
   // Layer 2: Check notification throttle (Critical severity bypasses)
   const isCritical = rule.severity === 'Critical';
-  const recentlyNotified = await wasNotifiedRecently(client.tenantId, rule.name, user);
+  const recentlyNotified = await wasNotifiedRecently(client.tenantId, rule.name, actor);
 
   alert.ShouldNotify = isCritical || !recentlyNotified;
 
   if (alert.ShouldNotify) {
-    await recordNotification(client.tenantId, rule.name, user);
+    await recordNotification(client.tenantId, rule.name, actor);
   }
 
   return alert;
@@ -243,15 +243,30 @@ function getEventTimestamp(event: AuditEvent | SignInLog | SecurityAlert, source
   }
 }
 
-function getEventUser(event: AuditEvent | SignInLog | SecurityAlert, source: RuleSource): string {
+function getEventActor(event: AuditEvent | SignInLog | SecurityAlert, source: RuleSource): string {
   switch (source) {
     case 'AuditLog':
       return (event as AuditEvent).UserId;
     case 'SignIn':
       return (event as SignInLog).userPrincipalName;
     case 'SecurityAlert':
-      // Security alerts don't have a user who initiated them - they're system-generated
       return '';
+  }
+}
+
+function getEventTarget(event: AuditEvent | SignInLog | SecurityAlert, source: RuleSource): { name: string; type: string } {
+  switch (source) {
+    case 'AuditLog': {
+      const audit = event as AuditEvent;
+      return {
+        name: (audit as Record<string, unknown>)._targetName as string ?? '',
+        type: (audit as Record<string, unknown>)._targetType as string ?? '',
+      };
+    }
+    case 'SignIn':
+      return { name: (event as SignInLog).userPrincipalName, type: 'User' };
+    case 'SecurityAlert':
+      return { name: '', type: '' };
   }
 }
 
@@ -261,18 +276,22 @@ function createAlert(
   rule: { name: string; severity: string; description: string },
   client: Client
 ): Alert {
+  const target = getEventTarget(event, source);
   return {
     TimeGenerated: getEventTimestamp(event, source),
     TimeProcessed: new Date().toISOString(),
     ClientTenantId: client.tenantId,
     ClientTenantName: client.name,
-    User: getEventUser(event, source),
+    Actor: getEventActor(event, source),
+    Target: target.name,
+    TargetType: target.type,
     RuleName: rule.name,
     Severity: rule.severity,
     Description: rule.description,
     SourceType: source,
     SourceEventId: getEventId(event),
     RawEventSummary: getEventSummary(event, source),
+    RawData: JSON.stringify(event),
   };
 }
 
@@ -300,32 +319,35 @@ async function processSecurityAlert(
   context: InvocationContext
 ): Promise<Alert | null> {
   const dedupKey = event.title;
-  const user = ''; // Security alerts are system-generated
+  const actor = ''; // Security alerts are system-generated
 
-  if (await isDuplicate(client.tenantId, dedupKey, user)) {
+  if (await isDuplicate(client.tenantId, dedupKey, actor)) {
     return null;
   }
-  await recordAlert(client.tenantId, dedupKey, user);
+  await recordAlert(client.tenantId, dedupKey, actor);
 
   const alert: Alert = {
     TimeGenerated: event.createdDateTime,
     TimeProcessed: new Date().toISOString(),
     ClientTenantId: client.tenantId,
     ClientTenantName: client.name,
-    User: user,
+    Actor: actor,
+    Target: '',
+    TargetType: '',
     RuleName: event.title,
     Severity: severity,
     Description: event.description,
     SourceType: 'SecurityAlert',
     SourceEventId: event.id,
     RawEventSummary: getEventSummary(event, 'SecurityAlert'),
+    RawData: JSON.stringify(event),
   };
 
-  const recentlyNotified = await wasNotifiedRecently(client.tenantId, dedupKey, user);
+  const recentlyNotified = await wasNotifiedRecently(client.tenantId, dedupKey, actor);
   alert.ShouldNotify = !recentlyNotified;
 
   if (alert.ShouldNotify) {
-    await recordNotification(client.tenantId, dedupKey, user);
+    await recordNotification(client.tenantId, dedupKey, actor);
   }
 
   return alert;
@@ -355,34 +377,38 @@ async function processRiskDetection(
   context: InvocationContext
 ): Promise<Alert | null> {
   const dedupKey = `risk:${event.riskEventType ?? event.id}`;
-  const user = event.userPrincipalName ?? '';
+  const actor = ''; // Risk detections are system-generated
+  const target = event.userPrincipalName ?? '';
 
-  if (await isDuplicate(client.tenantId, dedupKey, user)) {
+  if (await isDuplicate(client.tenantId, dedupKey, target)) {
     return null;
   }
-  await recordAlert(client.tenantId, dedupKey, user);
+  await recordAlert(client.tenantId, dedupKey, target);
 
-  const summary = `Risk: ${event.riskEventType}, User: ${user}, IP: ${event.ipAddress ?? 'N/A'}, Timing: ${event.detectionTimingType ?? 'N/A'}`;
+  const summary = `Risk: ${event.riskEventType}, User: ${target}, IP: ${event.ipAddress ?? 'N/A'}, Timing: ${event.detectionTimingType ?? 'N/A'}`;
 
   const alert: Alert = {
     TimeGenerated: event.activityDateTime ?? event.detectedDateTime ?? new Date().toISOString(),
     TimeProcessed: new Date().toISOString(),
     ClientTenantId: client.tenantId,
     ClientTenantName: client.name,
-    User: user,
+    Actor: actor,
+    Target: target,
+    TargetType: target ? 'User' : '',
     RuleName: event.riskEventType ?? 'Unknown risk detection',
     Severity: severity,
-    Description: `${event.riskEventType} detected for ${user || 'unknown user'}${event.ipAddress ? ` from ${event.ipAddress}` : ''}`,
+    Description: `${event.riskEventType} detected for ${target || 'unknown user'}${event.ipAddress ? ` from ${event.ipAddress}` : ''}`,
     SourceType: 'RiskDetection',
     SourceEventId: event.id,
     RawEventSummary: summary,
+    RawData: JSON.stringify(event),
   };
 
-  const recentlyNotified = await wasNotifiedRecently(client.tenantId, dedupKey, user);
+  const recentlyNotified = await wasNotifiedRecently(client.tenantId, dedupKey, target);
   alert.ShouldNotify = !recentlyNotified;
 
   if (alert.ShouldNotify) {
-    await recordNotification(client.tenantId, dedupKey, user);
+    await recordNotification(client.tenantId, dedupKey, target);
   }
 
   return alert;

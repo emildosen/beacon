@@ -87,7 +87,8 @@ function buildAdaptiveCard(alerts: Alert[]): object {
           {
             type: 'FactSet',
             facts: [
-              ...(alert.User ? [{ title: 'User', value: alert.User }] : []),
+              ...(alert.Actor ? [{ title: 'Actor', value: alert.Actor }] : []),
+              ...(alert.Target ? [{ title: 'Target', value: `${alert.Target}${alert.TargetType ? ` (${alert.TargetType})` : ''}` }] : []),
               { title: 'Source', value: alert.SourceType },
               { title: 'Time', value: new Date(alert.TimeGenerated).toLocaleString() },
             ],

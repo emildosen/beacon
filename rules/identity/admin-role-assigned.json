@@ -16,10 +16,13 @@
       { "field": "ModifiedProperties", "operator": "Contains", "value": "Admin" }
     ]
   },
+  "exceptions": [
+    { "field": "ModifiedProperties", "operator": "Contains", "value": "Global Administrator" }
+  ],
   "meta": {
     "author": "emildosen-test",
     "created": "2025-12-26",
-    "updated": "2025-12-26",
-    "notes": "Checks for 'Admin' in role name to avoid false positives on non-admin roles"
+    "updated": "2026-03-31",
+    "notes": "Checks for 'Admin' in role name. Excludes Global Administrator (handled by dedicated Critical rule)."
   }
 }

@@ -183,13 +183,16 @@ resource customTable 'Microsoft.OperationalInsights/workspaces/tables@2022-10-01
         { name: 'TimeProcessed', type: 'datetime', description: 'When Beacon processed the alert' }
         { name: 'ClientTenantId', type: 'string', description: 'Client tenant ID' }
         { name: 'ClientTenantName', type: 'string', description: 'Client tenant display name' }
-        { name: 'User', type: 'string', description: 'UPN of the user who initiated the action' }
+        { name: 'Actor', type: 'string', description: 'Who initiated the action (UPN or app name)' }
+        { name: 'Target', type: 'string', description: 'What was affected (UPN for users, displayName for groups)' }
+        { name: 'TargetType', type: 'string', description: 'Type of target resource (User, Group, Role)' }
         { name: 'RuleName', type: 'string', description: 'Name of the rule that triggered' }
         { name: 'Severity', type: 'string', description: 'Alert severity (Critical, High, Medium, Low)' }
         { name: 'Description', type: 'string', description: 'Alert description' }
         { name: 'SourceType', type: 'string', description: 'Source type (AuditLog, SignIn, SecurityAlert)' }
         { name: 'SourceEventId', type: 'string', description: 'Original event ID from source' }
         { name: 'RawEventSummary', type: 'string', description: 'Summary of raw event data' }
+        { name: 'RawData', type: 'string', description: 'Full JSON of the source event' }
         { name: 'ShouldNotify', type: 'boolean', description: 'Whether notification should be sent' }
       ]
     }
@@ -236,13 +239,16 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' 
           { name: 'TimeProcessed', type: 'datetime' }
           { name: 'ClientTenantId', type: 'string' }
           { name: 'ClientTenantName', type: 'string' }
-          { name: 'User', type: 'string' }
+          { name: 'Actor', type: 'string' }
+          { name: 'Target', type: 'string' }
+          { name: 'TargetType', type: 'string' }
           { name: 'RuleName', type: 'string' }
           { name: 'Severity', type: 'string' }
           { name: 'Description', type: 'string' }
           { name: 'SourceType', type: 'string' }
           { name: 'SourceEventId', type: 'string' }
           { name: 'RawEventSummary', type: 'string' }
+          { name: 'RawData', type: 'string' }
           { name: 'ShouldNotify', type: 'boolean' }
         ]
       }

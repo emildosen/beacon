@@ -45,13 +45,16 @@ export interface Alert {
   TimeProcessed: string; // When Beacon processed the alert
   ClientTenantId: string;
   ClientTenantName: string;
-  User: string; // UPN of the user who initiated the action
+  Actor: string; // Who initiated the action (UPN or app name)
+  Target: string; // What was affected (UPN for users, displayName for groups)
+  TargetType: string; // Type of target resource (User, Group, Role, etc.)
   RuleName: string;
   Severity: string;
   Description: string;
   SourceType: string;
   SourceEventId: string;
   RawEventSummary?: string;
+  RawData: string; // Full JSON of the source event
   ShouldNotify?: boolean; // Whether this alert should trigger Teams notification (used for throttling)
 }
 

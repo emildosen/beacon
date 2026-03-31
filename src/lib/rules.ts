@@ -195,7 +195,9 @@ export function getEventSummary(
   switch (source) {
     case 'AuditLog': {
       const audit = event as AuditEvent;
-      summary = `Operation: ${audit.Operation}, User: ${audit.UserId}, Workload: ${audit.Workload}`;
+      const target = (audit as Record<string, unknown>)._targetName as string ?? '';
+      const targetType = (audit as Record<string, unknown>)._targetType as string ?? '';
+      summary = `Operation: ${audit.Operation}, Actor: ${audit.UserId}, Workload: ${audit.Workload}${target ? `, Target: ${target} (${targetType})` : ''}`;
       break;
     }
     case 'SignIn': {
