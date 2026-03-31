@@ -15,8 +15,9 @@ import { AuditEvent, ContentBlob } from './types.js';
 
 const BASE_URL = 'https://manage.office.com/api/v1.0';
 
+// Azure AD audit events are now fetched via Graph API (/auditLogs/directoryAudits)
+// which provides near real-time delivery vs the Management API's 5-15 minute delay.
 const CONTENT_TYPES = [
-  'Audit.AzureActiveDirectory',
   'Audit.Exchange',
   'Audit.SharePoint',
   'Audit.General',

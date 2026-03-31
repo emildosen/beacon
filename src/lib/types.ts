@@ -159,6 +159,73 @@ export interface SecurityAlert {
   [key: string]: unknown;
 }
 
+// Graph API directory audit log
+export interface DirectoryAudit {
+  id: string;
+  activityDateTime: string;
+  activityDisplayName: string;
+  additionalDetails?: Array<{ key: string; value: string }>;
+  category: string;
+  correlationId?: string;
+  initiatedBy: {
+    user?: {
+      id?: string;
+      displayName?: string;
+      userPrincipalName?: string;
+    };
+    app?: {
+      appId?: string;
+      displayName?: string;
+      servicePrincipalId?: string;
+    };
+  };
+  loggedByService?: string;
+  operationType?: string;
+  result?: string;
+  resultReason?: string;
+  targetResources?: Array<{
+    id?: string;
+    displayName?: string;
+    type?: string;
+    userPrincipalName?: string;
+    modifiedProperties?: Array<{ displayName?: string; oldValue?: string; newValue?: string }>;
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+}
+
+// Graph API risk detection
+export interface RiskDetection {
+  id: string;
+  activity?: string;
+  activityDateTime?: string;
+  additionalInfo?: string;
+  correlationId?: string;
+  detectedDateTime?: string;
+  detectionTimingType?: string;
+  ipAddress?: string;
+  location?: {
+    city?: string;
+    state?: string;
+    countryOrRegion?: string;
+    geoCoordinates?: {
+      latitude?: number;
+      longitude?: number;
+    };
+  };
+  requestId?: string;
+  riskDetail?: string;
+  riskEventType?: string;
+  riskLevel?: string;
+  riskState?: string;
+  source?: string;
+  tokenIssuerType?: string;
+  userDisplayName?: string;
+  userId?: string;
+  userPrincipalName?: string;
+  [key: string]: unknown;
+}
+
 // Management API content blob reference
 export interface ContentBlob {
   contentUri: string;
@@ -216,6 +283,7 @@ export interface LogEntry {
   AuditEvents?: number;
   SignIns?: number;
   SecurityAlerts?: number;
+  RiskDetections?: number;
   AlertsGenerated?: number;
   DurationMs?: number;
 }

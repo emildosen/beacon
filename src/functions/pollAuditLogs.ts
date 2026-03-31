@@ -1,11 +1,11 @@
 import { app, InvocationContext, Timer } from '@azure/functions';
 import { getAuditEvents } from '../lib/managementApi.js';
-import { getSignIns, getSecurityAlerts, getOrganizationName } from '../lib/graph.js';
+import { getSignIns, getSecurityAlerts, getDirectoryAudits, getRiskDetections, getOrganizationName } from '../lib/graph.js';
 import { evaluateRules, getEventId, getEventSummary } from '../lib/rules.js';
 import { writeAlerts, writeLogs } from '../lib/logAnalytics.js';
 import { sendTeamsAlerts } from '../lib/teams.js';
 import { getClients, updateClientStatus, getRules, activateClient, incrementClientRetry, deleteClient, PLACEHOLDER_TENANT_ID } from '../lib/config.js';
-import { Alert, LogEntry, AuditEvent, SignInLog, SecurityAlert, RuleSource, Client, Rule, ClientStatus } from '../lib/types.js';
+import { Alert, LogEntry, AuditEvent, SignInLog, SecurityAlert, RiskDetection, RuleSource, Client, Rule, ClientStatus, Severity } from '../lib/types.js';
 import {
   isDuplicate,
   recordAlert,
@@ -57,7 +57,7 @@ app.timer('pollAuditLogs', {
 
       const startTime = Date.now();
       try {
-        const { alerts, eventCount, auditEventCount, signInCount, securityAlertCount } = await processClient(client, rules, since, context);
+        const { alerts, eventCount, auditEventCount, signInCount, securityAlertCount, riskDetectionCount } = await processClient(client, rules, since, context);
         allAlerts.push(...alerts);
         totalEvents += eventCount;
 
@@ -71,6 +71,7 @@ app.timer('pollAuditLogs', {
           AuditEvents: auditEventCount,
           SignIns: signInCount,
           SecurityAlerts: securityAlertCount,
+          RiskDetections: riskDetectionCount,
           AlertsGenerated: alerts.length,
           DurationMs: Date.now() - startTime,
         });
@@ -134,17 +135,24 @@ async function processClient(
   rules: Rule[],
   since: Date,
   context: InvocationContext
-): Promise<{ alerts: Alert[]; eventCount: number; auditEventCount: number; signInCount: number; securityAlertCount: number }> {
+): Promise<{ alerts: Alert[]; eventCount: number; auditEventCount: number; signInCount: number; securityAlertCount: number; riskDetectionCount: number }> {
   const alerts: Alert[] = [];
 
-  const [auditEvents, signIns, securityAlerts] = await Promise.all([
+  const [auditEvents, directoryAudits, signIns, securityAlerts, riskDetections] = await Promise.all([
     getAuditEvents(client.tenantId, since, context),
+    getDirectoryAudits(client.tenantId, since, context),
     getSignIns(client.tenantId, since, context),
     getSecurityAlerts(client.tenantId, since, context),
+    getRiskDetections(client.tenantId, since, context),
   ]);
 
+  // Merge Management API audit events with Graph directory audits (already normalized to AuditEvent shape).
+  // Graph directoryAudits cover Azure AD operations with near real-time delivery;
+  // Management API covers Exchange, SharePoint, and General (AAD removed from Management API to avoid duplication).
+  const allAuditEvents = [...directoryAudits, ...auditEvents];
+
   // Process audit events
-  for (const event of auditEvents) {
+  for (const event of allAuditEvents) {
     const matchedRule = evaluateRules(event, 'AuditLog', rules, client.tenantId);
     if (matchedRule) {
       const alert = await processAlert(event, 'AuditLog', matchedRule, client, context);
@@ -161,21 +169,31 @@ async function processClient(
     }
   }
 
-  // Process security alerts
+  // Process security alerts — bypass rules engine, forward directly based on severity
   for (const event of securityAlerts) {
-    const matchedRule = evaluateRules(event, 'SecurityAlert', rules, client.tenantId);
-    if (matchedRule) {
-      const alert = await processAlert(event, 'SecurityAlert', matchedRule, client, context);
-      if (alert) alerts.push(alert);
-    }
+    const severity = mapSecurityAlertSeverity(event.severity);
+    if (!severity) continue; // Drop informational/unknown
+
+    const alert = await processSecurityAlert(event, severity, client, context);
+    if (alert) alerts.push(alert);
+  }
+
+  // Process risk detections — bypass rules engine, forward directly based on risk level
+  for (const event of riskDetections) {
+    const severity = mapRiskLevel(event.riskLevel);
+    if (!severity) continue; // Drop none/hidden/unknown
+
+    const alert = await processRiskDetection(event, severity, client, context);
+    if (alert) alerts.push(alert);
   }
 
   return {
     alerts,
-    eventCount: auditEvents.length + signIns.length + securityAlerts.length,
-    auditEventCount: auditEvents.length,
+    eventCount: allAuditEvents.length + signIns.length + securityAlerts.length + riskDetections.length,
+    auditEventCount: allAuditEvents.length,
     signInCount: signIns.length,
     securityAlertCount: securityAlerts.length,
+    riskDetectionCount: riskDetections.length,
   };
 }
 
@@ -256,6 +274,118 @@ function createAlert(
     SourceEventId: getEventId(event),
     RawEventSummary: getEventSummary(event, source),
   };
+}
+
+/**
+ * Maps Graph API security alert severity to Beacon severity.
+ * Returns null for informational/unknown alerts (dropped).
+ */
+function mapSecurityAlertSeverity(graphSeverity: string): Severity | null {
+  switch (graphSeverity) {
+    case 'low': return 'Low';
+    case 'medium': return 'Medium';
+    case 'high': return 'High';
+    default: return null; // Drop informational, unknown, unknownFutureValue
+  }
+}
+
+/**
+ * Process a security alert directly (no rules engine).
+ * Still runs through dedup and notification throttle.
+ */
+async function processSecurityAlert(
+  event: SecurityAlert,
+  severity: Severity,
+  client: Client,
+  context: InvocationContext
+): Promise<Alert | null> {
+  const dedupKey = event.title;
+  const user = ''; // Security alerts are system-generated
+
+  if (await isDuplicate(client.tenantId, dedupKey, user)) {
+    return null;
+  }
+  await recordAlert(client.tenantId, dedupKey, user);
+
+  const alert: Alert = {
+    TimeGenerated: event.createdDateTime,
+    TimeProcessed: new Date().toISOString(),
+    ClientTenantId: client.tenantId,
+    ClientTenantName: client.name,
+    User: user,
+    RuleName: event.title,
+    Severity: severity,
+    Description: event.description,
+    SourceType: 'SecurityAlert',
+    SourceEventId: event.id,
+    RawEventSummary: getEventSummary(event, 'SecurityAlert'),
+  };
+
+  const recentlyNotified = await wasNotifiedRecently(client.tenantId, dedupKey, user);
+  alert.ShouldNotify = !recentlyNotified;
+
+  if (alert.ShouldNotify) {
+    await recordNotification(client.tenantId, dedupKey, user);
+  }
+
+  return alert;
+}
+
+/**
+ * Maps Graph API risk detection riskLevel to Beacon severity.
+ * Returns null for none/hidden/unknown (dropped).
+ */
+function mapRiskLevel(riskLevel: string | undefined): Severity | null {
+  switch (riskLevel) {
+    case 'low': return 'Low';
+    case 'medium': return 'Medium';
+    case 'high': return 'High';
+    default: return null; // Drop none, hidden, unknown, unknownFutureValue
+  }
+}
+
+/**
+ * Process a risk detection directly (no rules engine).
+ * Still runs through dedup and notification throttle.
+ */
+async function processRiskDetection(
+  event: RiskDetection,
+  severity: Severity,
+  client: Client,
+  context: InvocationContext
+): Promise<Alert | null> {
+  const dedupKey = `risk:${event.riskEventType ?? event.id}`;
+  const user = event.userPrincipalName ?? '';
+
+  if (await isDuplicate(client.tenantId, dedupKey, user)) {
+    return null;
+  }
+  await recordAlert(client.tenantId, dedupKey, user);
+
+  const summary = `Risk: ${event.riskEventType}, User: ${user}, IP: ${event.ipAddress ?? 'N/A'}, Timing: ${event.detectionTimingType ?? 'N/A'}`;
+
+  const alert: Alert = {
+    TimeGenerated: event.activityDateTime ?? event.detectedDateTime ?? new Date().toISOString(),
+    TimeProcessed: new Date().toISOString(),
+    ClientTenantId: client.tenantId,
+    ClientTenantName: client.name,
+    User: user,
+    RuleName: event.riskEventType ?? 'Unknown risk detection',
+    Severity: severity,
+    Description: `${event.riskEventType} detected for ${user || 'unknown user'}${event.ipAddress ? ` from ${event.ipAddress}` : ''}`,
+    SourceType: 'RiskDetection',
+    SourceEventId: event.id,
+    RawEventSummary: summary,
+  };
+
+  const recentlyNotified = await wasNotifiedRecently(client.tenantId, dedupKey, user);
+  alert.ShouldNotify = !recentlyNotified;
+
+  if (alert.ShouldNotify) {
+    await recordNotification(client.tenantId, dedupKey, user);
+  }
+
+  return alert;
 }
 
 // Retry schedule for pending client verification (ms after createdAt)

@@ -214,6 +214,7 @@ resource logTable 'Microsoft.OperationalInsights/workspaces/tables@2022-10-01' =
         { name: 'AuditEvents', type: 'int', description: 'Number of audit events fetched' }
         { name: 'SignIns', type: 'int', description: 'Number of sign-in logs fetched' }
         { name: 'SecurityAlerts', type: 'int', description: 'Number of security alerts fetched' }
+        { name: 'RiskDetections', type: 'int', description: 'Number of risk detections fetched' }
         { name: 'AlertsGenerated', type: 'int', description: 'Number of alerts generated' }
         { name: 'DurationMs', type: 'int', description: 'Processing duration in milliseconds' }
       ]
@@ -256,6 +257,7 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' 
           { name: 'AuditEvents', type: 'int' }
           { name: 'SignIns', type: 'int' }
           { name: 'SecurityAlerts', type: 'int' }
+          { name: 'RiskDetections', type: 'int' }
           { name: 'AlertsGenerated', type: 'int' }
           { name: 'DurationMs', type: 'int' }
         ]
