@@ -1,10 +1,10 @@
 import { app, InvocationContext, Timer } from '@azure/functions';
 import { getAuditEvents } from '../lib/managementApi.js';
-import { getSignIns, getSecurityAlerts } from '../lib/graph.js';
+import { getSignIns, getSecurityAlerts, getOrganizationName } from '../lib/graph.js';
 import { evaluateRules, getEventId, getEventSummary } from '../lib/rules.js';
 import { writeAlerts } from '../lib/logAnalytics.js';
 import { sendTeamsAlerts } from '../lib/teams.js';
-import { getClients, updateClientStatus, getRules, PLACEHOLDER_TENANT_ID } from '../lib/config.js';
+import { getClients, updateClientStatus, getRules, activateClient, incrementClientRetry, deleteClient, PLACEHOLDER_TENANT_ID } from '../lib/config.js';
 import { Alert, AuditEvent, SignInLog, SecurityAlert, RuleSource, Client, Rule, ClientStatus } from '../lib/types.js';
 import {
   isDuplicate,
@@ -28,9 +28,13 @@ app.timer('pollAuditLogs', {
     // Preload rules and clients before processing
     const rules = await getRules(context);
     const allClients = await getClients();
-    // Filter out placeholder client
-    const clients = allClients.filter((c) => c.tenantId !== PLACEHOLDER_TENANT_ID);
-    context.log(`Processing ${clients.length} clients against ${rules.length} rules`);
+    // Filter out placeholder client and pending clients
+    const pendingClients = allClients.filter((c) => c.tenantId !== PLACEHOLDER_TENANT_ID && c.status === 'pending');
+    const clients = allClients.filter((c) => c.tenantId !== PLACEHOLDER_TENANT_ID && c.status !== 'pending');
+    context.log(`Processing ${clients.length} clients against ${rules.length} rules (${pendingClients.length} pending)`);
+
+    // Verify pending clients
+    await verifyPendingClients(pendingClients, now, context);
 
     const allAlerts: Alert[] = [];
     let totalEvents = 0;
@@ -215,6 +219,75 @@ function createAlert(
     SourceEventId: getEventId(event),
     RawEventSummary: getEventSummary(event, source),
   };
+}
+
+// Retry schedule for pending client verification (ms after createdAt)
+const PENDING_RETRY_DELAYS = [
+  10 * 60 * 1000,  // Retry 0: 10 minutes
+  30 * 60 * 1000,  // Retry 1: 30 minutes
+  60 * 60 * 1000,  // Retry 2: 1 hour
+];
+const MAX_PENDING_RETRIES = PENDING_RETRY_DELAYS.length;
+
+/**
+ * Verify pending clients by attempting a Graph API call
+ * Follows a retry schedule, deletes and logs an alert if all retries are exhausted
+ */
+async function verifyPendingClients(
+  pendingClients: Client[],
+  now: Date,
+  context: InvocationContext
+): Promise<void> {
+  for (const client of pendingClients) {
+    const retryCount = client.retryCount ?? 0;
+    const createdAt = client.createdAt ? new Date(client.createdAt) : now;
+    const elapsed = now.getTime() - createdAt.getTime();
+
+    // Check if enough time has passed for this retry attempt
+    const requiredDelay = retryCount < MAX_PENDING_RETRIES ? PENDING_RETRY_DELAYS[retryCount] : 0;
+    if (elapsed < requiredDelay) {
+      continue;
+    }
+
+    // All retries exhausted — delete and alert
+    if (retryCount >= MAX_PENDING_RETRIES) {
+      context.warn(`Pending client ${client.tenantId} failed verification after ${MAX_PENDING_RETRIES} attempts, removing`);
+      await deleteClient(client.tenantId);
+
+      try {
+        const alert: Alert = {
+          TimeGenerated: now.toISOString(),
+          TimeProcessed: now.toISOString(),
+          ClientTenantId: client.tenantId,
+          ClientTenantName: client.tenantId,
+          User: '',
+          RuleName: 'Pending client verification failed',
+          Severity: 'High',
+          Description: `Tenant ${client.tenantId} failed Graph API verification after ${MAX_PENDING_RETRIES} attempts and was removed. This may indicate an invalid consent or a probing attempt.`,
+          SourceType: 'AuditLog',
+          SourceEventId: `pending-verification-${client.tenantId}`,
+          ShouldNotify: true,
+        };
+        await writeAlerts([alert], context);
+        await sendTeamsAlerts([alert], context);
+      } catch (err) {
+        context.error(`Failed to log alert for removed pending client ${client.tenantId}:`, err);
+      }
+      continue;
+    }
+
+    // Attempt verification via Graph
+    try {
+      const organizationName = await getOrganizationName(client.tenantId);
+      await activateClient(client.tenantId, organizationName);
+      context.log(`Verified and activated client: ${organizationName} (${client.tenantId})`);
+    } catch (err) {
+      const nextRetry = retryCount + 1;
+      const message = `Verification attempt ${nextRetry}/${MAX_PENDING_RETRIES} failed: ${err instanceof Error ? err.message : String(err)}`;
+      context.warn(`Pending client ${client.tenantId}: ${message}`);
+      await incrementClientRetry(client.tenantId, nextRetry, message);
+    }
+  }
 }
 
 /**

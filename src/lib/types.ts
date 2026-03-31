@@ -178,6 +178,7 @@ export interface GraphPagedResponse<T> {
 // Client status after poll
 export type ClientStatus =
   | 'success'
+  | 'pending'
   | 'auditLogDisabled'
   | 'appNotConsented'
   | 'permissionDenied'
@@ -191,6 +192,8 @@ export interface Client {
   lastPoll?: string; // ISO timestamp of last successful poll
   status?: ClientStatus;
   statusMessage?: string; // Additional error details
+  createdAt?: string; // ISO timestamp of when the client was added
+  retryCount?: number; // Number of verification attempts for pending clients
 }
 
 // Alerts configuration

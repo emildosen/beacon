@@ -35,6 +35,10 @@ param dataCollectionRuleName string = ''
 @description('Application Insights name (leave empty for auto-generated)')
 param appInsightsName string = ''
 
+@description('Shared token used to validate admin consent callbacks (passed as state parameter). Not marked @secure() because it must appear in the adminConsentUrl output.')
+#disable-next-line secure-secrets-in-params
+param consentSecret string = uniqueString(resourceGroup().id, 'consent')
+
 // Variables
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var appNameLower = toLower(appName)
@@ -331,6 +335,10 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           value: appInsights.properties.ConnectionString
         }
         {
+          name: 'CONSENT_SECRET'
+          value: consentSecret
+        }
+        {
           name: 'DEPLOYMENT_STORAGE_CONNECTION_STRING'
           value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
         }
@@ -419,7 +427,7 @@ output functionAppPrincipalId string = functionApp.identity.principalId
 output appRegistrationAppId string = appRegistration.appId
 output appRegistrationName string = appRegistration.displayName
 output storageAccountName string = storageAccount.name
-output adminConsentUrl string = '${environment().authentication.loginEndpoint}common/adminconsent?client_id=${appRegistration.appId}&redirect_uri=https://${functionApp.properties.defaultHostName}/api/m365Callback'
+output adminConsentUrl string = '${environment().authentication.loginEndpoint}common/adminconsent?client_id=${appRegistration.appId}&redirect_uri=https://${functionApp.properties.defaultHostName}/api/m365Callback&state=${consentSecret}'
 output logAnalyticsWorkspaceId string = logAnalyticsWorkspace.properties.customerId
 output logAnalyticsWorkspaceName string = logAnalyticsWorkspace.name
 output dataCollectionEndpointUrl string = dataCollectionEndpoint.properties.logsIngestion.endpoint

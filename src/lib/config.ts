@@ -116,6 +116,8 @@ async function seedPlaceholderDataIfEmpty(): Promise<void> {
         lastPoll: new Date(),
         status: 'success',
         statusMessage: 'Placeholder row for schema visibility',
+        createdAt: new Date(),
+        retryCount: 0,
       },
       'Replace'
     );
@@ -335,6 +337,8 @@ export async function getClients(): Promise<Client[]> {
     lastPoll?: Date;
     status?: string;
     statusMessage?: string;
+    createdAt?: Date;
+    retryCount?: number;
   }>();
 
   for await (const entity of entities) {
@@ -344,6 +348,8 @@ export async function getClients(): Promise<Client[]> {
       lastPoll: entity.lastPoll?.toISOString(),
       status: entity.status as ClientStatus | undefined,
       statusMessage: entity.statusMessage,
+      createdAt: entity.createdAt?.toISOString(),
+      retryCount: entity.retryCount,
     });
   }
 
@@ -351,9 +357,29 @@ export async function getClients(): Promise<Client[]> {
 }
 
 /**
- * Add a new client to the Clients table
+ * Add a new client to the Clients table in pending state
  */
-export async function addClient(tenantId: string, name: string): Promise<void> {
+export async function addClient(tenantId: string): Promise<void> {
+  await ensureTablesExist();
+
+  await clientsTableClient!.upsertEntity(
+    {
+      partitionKey: 'client',
+      rowKey: tenantId,
+      name: tenantId,
+      status: 'pending',
+      statusMessage: 'Awaiting verification',
+      createdAt: new Date(),
+      retryCount: 0,
+    },
+    'Merge'
+  );
+}
+
+/**
+ * Update a pending client after successful verification
+ */
+export async function activateClient(tenantId: string, name: string): Promise<void> {
   await ensureTablesExist();
 
   await clientsTableClient!.upsertEntity(
@@ -362,10 +388,42 @@ export async function addClient(tenantId: string, name: string): Promise<void> {
       rowKey: tenantId,
       name,
       status: 'success',
-      statusMessage: 'Added via admin consent',
+      statusMessage: '',
+      retryCount: 0,
     },
     'Merge'
   );
+}
+
+/**
+ * Increment retry count for a pending client
+ */
+export async function incrementClientRetry(tenantId: string, retryCount: number, statusMessage: string): Promise<void> {
+  await ensureTablesExist();
+
+  await clientsTableClient!.upsertEntity(
+    {
+      partitionKey: 'client',
+      rowKey: tenantId,
+      retryCount,
+      status: 'pending',
+      statusMessage,
+    },
+    'Merge'
+  );
+}
+
+/**
+ * Delete a client from the Clients table
+ */
+export async function deleteClient(tenantId: string): Promise<void> {
+  await ensureTablesExist();
+
+  try {
+    await clientsTableClient!.deleteEntity('client', tenantId);
+  } catch (e: unknown) {
+    if ((e as { statusCode?: number }).statusCode !== 404) throw e;
+  }
 }
 
 /**
