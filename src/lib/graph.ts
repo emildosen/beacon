@@ -142,6 +142,20 @@ export async function getDirectoryAudits(
  * Normalizes a Graph directoryAudit into AuditEvent shape
  * so existing AuditLog rules work against both sources.
  */
+/**
+ * Graph API returns modifiedProperties values as JSON-encoded strings
+ * (e.g., "\"Global Administrator\""). Parse them to get the plain value.
+ */
+function expandJsonValue(value: string | null | undefined): string {
+  if (!value) return '';
+  try {
+    const parsed = JSON.parse(value);
+    return typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
+  } catch {
+    return value;
+  }
+}
+
 function normalizeDirectoryAudit(audit: DirectoryAudit): AuditEvent {
   const userId = audit.initiatedBy?.user?.userPrincipalName
     ?? audit.initiatedBy?.app?.displayName
@@ -161,8 +175,8 @@ function normalizeDirectoryAudit(audit: DirectoryAudit): AuditEvent {
         for (const prop of target.modifiedProperties) {
           modifiedProps.push({
             Name: prop.displayName ?? '',
-            NewValue: prop.newValue ?? '',
-            OldValue: prop.oldValue ?? '',
+            NewValue: expandJsonValue(prop.newValue),
+            OldValue: expandJsonValue(prop.oldValue),
           });
         }
       }
