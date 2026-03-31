@@ -212,7 +212,7 @@ function isValidRule(rule: unknown): rule is Omit<Rule, 'id'> {
 
 /**
  * Sync bundled rules from filesystem to blob storage
- * Always overwrites existing rules to ensure latest bundled rules are deployed
+ * Only uploads rules that don't already exist in blob (preserves user customizations)
  */
 async function syncBundledRulesToBlob(logger?: Logger): Promise<void> {
   if (rulesSynced || useFilesystemForRules()) return;
@@ -227,6 +227,13 @@ async function syncBundledRulesToBlob(logger?: Logger): Promise<void> {
       const blobName = `rules/${relativePath.replace(/\\/g, '/')}`;
       const blobClient = container.getBlockBlobClient(blobName);
 
+      // Check if blob already exists
+      const exists = await blobClient.exists();
+      if (exists) {
+        continue; // Don't overwrite user customizations
+      }
+
+      // Upload bundled rule
       const content = readFileSync(filePath, 'utf-8');
       await blobClient.upload(content, content.length, {
         blobHTTPHeaders: { blobContentType: 'application/json' },
@@ -460,7 +467,7 @@ export async function getRules(logger?: Logger): Promise<Rule[]> {
     return loadRulesFromFilesystem(logger);
   }
 
-  // Sync bundled rules to blob (always overwrites with latest)
+  // Sync bundled rules to blob (only uploads missing ones)
   await syncBundledRulesToBlob(logger);
 
   return loadRulesFromBlob(logger);
