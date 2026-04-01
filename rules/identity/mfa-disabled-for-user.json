@@ -1,7 +1,7 @@
 {
   "name": "MFA disabled for user",
-  "description": "Multi-factor authentication disabled for a user",
-  "severity": "Critical",
+  "description": "Multi-factor authentication disabled for {{TargetResources.0.userPrincipalName}}",
+  "severity": "High",
   "enabled": true,
   "source": "AuditLog",
   "mitre": {
@@ -16,7 +16,7 @@
     ]
   },
   "meta": {
-    "author": "emildosen-test",
+    "author": "emildosen",
     "created": "2025-12-26"
   }
 }
