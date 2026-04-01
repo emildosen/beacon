@@ -152,7 +152,7 @@ function generateCategoryPage(category: string, rules: Rule[]): string {
     }
     lines.push('')
 
-    lines.push(rule.description)
+    lines.push(escapeVue(rule.description))
     lines.push('')
 
     // Conditions
