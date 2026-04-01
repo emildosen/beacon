@@ -459,7 +459,7 @@ resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = {
     displayName: 'Beacon Alerts'
     category: 'workbook'
     sourceId: logAnalyticsWorkspace.id
-    serializedData: loadTextContent('../workbooks/beacon-alerts.json')
+    serializedData: loadTextContent('workbooks/beacon-alerts.json')
   }
 }
 
