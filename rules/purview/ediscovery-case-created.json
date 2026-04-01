@@ -9,9 +9,10 @@
     "technique": "T1567"
   },
   "conditions": {
-    "match": "all",
+    "match": "any",
     "rules": [
-      { "field": "Operation", "operator": "Equals", "value": "CaseAdded" }
+      { "field": "Operation", "operator": "Equals", "value": "CaseAdded" },
+      { "field": "Operation", "operator": "Equals", "value": "New-ComplianceCase" }
     ]
   },
   "meta": {

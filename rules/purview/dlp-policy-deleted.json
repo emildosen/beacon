@@ -1,6 +1,6 @@
 {
   "name": "DLP policy deleted",
-  "description": "DLP policy deleted - data protection removed",
+  "description": "{{UserId}} deleted a DLP policy - data protection removed",
   "severity": "Critical",
   "enabled": true,
   "source": "AuditLog",
@@ -16,7 +16,8 @@
     ]
   },
   "meta": {
-    "author": "emildosen-test",
-    "created": "2025-12-26"
+    "author": "emildosen",
+    "created": "2025-12-26",
+    "updated": "2026-03-31"
   }
 }

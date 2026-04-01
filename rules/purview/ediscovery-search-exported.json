@@ -6,13 +6,13 @@
   "source": "AuditLog",
   "mitre": {
     "tactic": "Collection",
-    "technique": "T1213",
-    "subtechnique": "T1213.002"
+    "technique": "T1213"
   },
   "conditions": {
-    "match": "all",
+    "match": "any",
     "rules": [
-      { "field": "Operation", "operator": "Equals", "value": "PurviewSearchExportJobSubmitted" }
+      { "field": "Operation", "operator": "Equals", "value": "PurviewSearchExportJobSubmitted" },
+      { "field": "Operation", "operator": "Equals", "value": "New-ComplianceSearchAction" }
     ]
   },
   "meta": {

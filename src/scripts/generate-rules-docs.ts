@@ -189,11 +189,9 @@ function generateIndexPage(categoryRules: CategoryRules): string {
 
   const descriptions: Record<string, string> = {
     'applications': 'OAuth apps, service principals, and app registrations',
-    'compliance': 'DLP policies, audit logging, and compliance settings',
-    'ediscovery': 'eDiscovery searches and exports',
     'exchange': 'Inbox rules, mail flow, and Exchange Online security',
     'identity': 'Admin roles, MFA, conditional access, and federation',
-    'security-alerts': 'Microsoft Defender security alerts',
+    'purview': 'DLP policies, audit logging, and compliance settings',
     'sharepoint': 'SharePoint and OneDrive file sharing',
     'sign-in': 'Sign-in risk detections and anomalies',
     'client-specific': 'Tenant-specific rule templates',
