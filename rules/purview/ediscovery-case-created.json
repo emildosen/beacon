@@ -1,0 +1,21 @@
+{
+  "name": "eDiscovery case created",
+  "description": "{{UserId}} created eDiscovery case '{{ObjectId}}'",
+  "severity": "High",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Exfiltration",
+    "technique": "T1567"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "CaseAdded" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2026-04-01"
+  }
+}

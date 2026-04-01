@@ -1,0 +1,23 @@
+{
+  "name": "eDiscovery search exported",
+  "description": "{{UserId}} started export of eDiscovery case '{{CaseName}}'",
+  "severity": "Critical",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Collection",
+    "technique": "T1213",
+    "subtechnique": "T1213.002"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "PurviewSearchExportJobSubmitted" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2025-12-26",
+    "updated": "2026-03-31"
+  }
+}

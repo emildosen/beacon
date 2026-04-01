@@ -1,0 +1,24 @@
+{
+  "name": "eDiscovery role member added",
+  "description": "{{UserId}} added a member to an eDiscovery role group",
+  "severity": "High",
+  "enabled": true,
+  "source": "AuditLog",
+  "mitre": {
+    "tactic": "Privilege Escalation",
+    "technique": "T1078",
+    "subtechnique": "T1078.004"
+  },
+  "conditions": {
+    "match": "all",
+    "rules": [
+      { "field": "Operation", "operator": "Equals", "value": "Update-RoleGroupMember" },
+      { "field": "Parameters", "operator": "Contains", "value": "eDiscovery" }
+    ]
+  },
+  "meta": {
+    "author": "emildosen",
+    "created": "2026-03-31",
+    "updated": "2026-04-01"
+  }
+}
