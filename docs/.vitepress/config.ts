@@ -33,8 +33,7 @@ export default defineConfig({
       {
         text: 'Setup',
         items: [
-          { text: 'Azure Deployment', link: '/azure-deployment' },
-          { text: 'Manual Deployment', link: '/manual-deployment' }
+          { text: 'Azure Deployment', link: '/azure-deployment' }
         ]
       },
       {

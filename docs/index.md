@@ -4,8 +4,8 @@ titleTemplate: false
 
 hero:
   name: "Beacon"
-  text: "M365 Security Alerting for MSPs"
-  tagline: Detect threats across all your tenants
+  text: "Microsoft 365 \nThreat Detection"
+  tagline: Catch threats across all your Microsoft 365 tenants
   actions:
     - theme: brand
       text: Introduction

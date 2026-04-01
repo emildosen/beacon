@@ -2,11 +2,11 @@
 
 Beacon is an Azure Functions app that polls Microsoft 365 APIs for security events, evaluates them against configurable rules, and writes alerts to Azure Log Analytics. Designed for MSPs managing multiple Microsoft 365 tenants.
 
-This is a self-hosted solution that lives in your own tenant. Every tenant you wish to monitor must consent to the app registration you create.
+This is a self-hosted solution that lives in your own tenant. Every tenant you wish to monitor must consent to the app registration that is created.
 
 ## Tech Stack
 
-- Azure Functions
+- Azure Functions and Entra ID app with federated authentication
 - Azure Log Analytics with Data Collection Rules
 - Azure Table Storage for state management
 - Microsoft Graph API
@@ -16,9 +16,8 @@ This is a self-hosted solution that lives in your own tenant. Every tenant you w
 
 1. **Timer Trigger** - Azure Function runs every 5 minutes
 2. **Multi-Tenant Polling** - Fetches events from Microsoft APIs for all tenants added to the clients table
-3. **Rule Evaluation** - Each event is evaluated against rules in `/rules/*.yaml`
-4. **Alert Deduplication** - 5-minute window prevents duplicate alerts for same user/rule/tenant
-5. **Notification Throttling** - 1-hour window throttles notifications (Critical severity always bypasses)
+3. **Rule Evaluation** - Each event is evaluated against rules in `/rules/`
+4. **Alert Deduplication** - 10-minute window prevents duplicate alerts for same user/rule/tenant
 6. **Alert Ingestion** - Matched events written to Azure Log Analytics custom table
 
 ## Data Sources
@@ -27,11 +26,12 @@ This is a self-hosted solution that lives in your own tenant. Every tenant you w
 |--------|-----|-------------|
 | Sign-in Logs | Microsoft Graph | Authentication events, risk detections, conditional access results |
 | Security Alerts | Microsoft Graph | Defender for Endpoint/Identity/O365, Entra ID Protection |
+| Directory Audits | Microsoft Graph | Entra ID operations: role assignments, CA policy changes, app registrations |
 | Audit Logs | O365 Management API | Admin activity, mailbox access, SharePoint/OneDrive events |
 
 ## Rule Engine
 
-Rules are YAML files stored in `/rules/`. Each rule specifies:
+Rules are JSON files stored in `/rules/`. Each rule specifies:
 
 - **Source** - Which API to evaluate (`SignIn`, `SecurityAlert`, `AuditLog`)
 - **Conditions** - Field/operator/value matching with `all` or `any` logic
@@ -39,20 +39,19 @@ Rules are YAML files stored in `/rules/`. Each rule specifies:
 - **Severity** - `Critical`, `High`, `Medium`, `Low`
 - **MITRE ATT&CK** - Optional tactic/technique mapping
 
-See [Rules](./rules/) for rule syntax and examples.
+See all rules [here](./rules/).
 
 ## Alert Deduplication
 
 Beacon uses Azure Table Storage to track alert state across invocations:
 
-| Layer | Window | Purpose |
-|-------|--------|---------|
-| Alert Dedup | 5 minutes | Suppress duplicate Log Analytics entries for same tenant + rule + user |
-| Notification Throttle | 1 hour | Reduce Teams noise for recurring alerts (Critical bypasses) |
+| Window | Purpose |
+|--------|---------|
+| 10 minutes | Suppress duplicate Log Analytics entries for same tenant + rule + user |
 
 ## Multi-Tenant Support
 
 Beacon uses a single multi-tenant Entra ID app registration in your home tenant. Client tenants grant admin consent to this app, allowing Beacon to poll their Microsoft APIs.
 
 - **Sequential Processing** - Tenants processed one at a time to respect API rate limits
-- **Fault Isolation** - Failures in one tenant don't affect others; lastPoll not updated on failure
+- **Fault Isolation** - Failures in one tenant don't affect others
