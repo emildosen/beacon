@@ -8,6 +8,10 @@ const LOG_STREAM = 'Custom-Beacon_Log_CL';
 
 let clientInstance: LogsIngestionClient | null = null;
 
+function isLogAnalyticsConfigured(): boolean {
+  return !!process.env.LOG_ANALYTICS_ENDPOINT && !!process.env.LOG_ANALYTICS_RULE_ID;
+}
+
 function getClient(): LogsIngestionClient {
   if (!clientInstance) {
     const endpoint = process.env.LOG_ANALYTICS_ENDPOINT;
@@ -33,12 +37,16 @@ export async function writeAlerts(
     return;
   }
 
-  const ruleId = process.env.LOG_ANALYTICS_RULE_ID;
-  if (!ruleId) {
-    throw new Error('Missing required environment variable: LOG_ANALYTICS_RULE_ID');
+  if (!isLogAnalyticsConfigured()) {
+    context.log(`[LOCAL DEV] ${alerts.length} alert(s) to ${ALERTS_STREAM}:`);
+    for (const alert of alerts) {
+      context.log(JSON.stringify(alert, null, 2));
+    }
+    return;
   }
 
   const client = getClient();
+  const ruleId = process.env.LOG_ANALYTICS_RULE_ID!;
 
   try {
     await client.upload(ruleId, ALERTS_STREAM, alerts as unknown as Record<string, unknown>[]);
@@ -57,12 +65,16 @@ export async function writeLogs(
 ): Promise<void> {
   if (logs.length === 0) return;
 
-  const ruleId = process.env.LOG_ANALYTICS_RULE_ID;
-  if (!ruleId) {
-    throw new Error('Missing required environment variable: LOG_ANALYTICS_RULE_ID');
+  if (!isLogAnalyticsConfigured()) {
+    context.log(`[LOCAL DEV] ${logs.length} log(s) to ${LOG_STREAM}:`);
+    for (const log of logs) {
+      context.log(JSON.stringify(log, null, 2));
+    }
+    return;
   }
 
   const client = getClient();
+  const ruleId = process.env.LOG_ANALYTICS_RULE_ID!;
 
   try {
     await client.upload(ruleId, LOG_STREAM, logs as unknown as Record<string, unknown>[]);

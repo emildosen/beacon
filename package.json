@@ -8,6 +8,7 @@
     "start": "npm run build && func start",
     "watch": "tsc -w",
     "test-rules": "node --import tsx src/scripts/test-rules.ts",
+    "download-logs": "node --import tsx src/scripts/download-logs.ts",
     "docs:generate": "node --import tsx src/scripts/generate-rules-docs.ts",
     "docs:dev": "npm run docs:generate && vitepress dev docs",
     "docs:build": "npm run docs:generate && vitepress build docs",

@@ -1,37 +1,35 @@
 # Debugging Rules
 
-You can test the rule engine locally against exported logs without waiting for live data.
+You can test the rule engine locally against real logs without waiting for live alerts.
 
-## Exporting Logs from Graph Explorer
+## Downloading Logs
 
-1. Open the [Graph Explorer](https://developer.microsoft.com/graph/graph-explorer)
-2. Sign in with your M365 account (user icon in the top right corner)
-3. Run one of these queries:
+Use `download-logs` to fetch the same audit logs the poller checks, for the last hour:
 
-**Sign-in logs (GET)**
-```
-https://graph.microsoft.com/v1.0/auditLogs/signIns?$top=50
+```bash
+npm run download-logs -- <tenant-id>
 ```
 
-**Security alerts (GET)**
-```
-https://graph.microsoft.com/v2.0/security/alerts_v2?$top=50
-```
+This downloads all 5 event sources (audit events, directory audits, sign-ins, security alerts, risk detections) and saves them as separate JSON files in `test-data/`.
 
-4. Copy the JSON response and save to `test-data/signins.json` (or similar)
+Requires `CLIENT_ID` and `CLIENT_SECRET` in `local.settings.json`.
 
 The `test-data/` directory is gitignored to prevent committing sensitive logs.
 
 ## Running the Test Tool
 
+Run rules against the downloaded logs:
+
 ```bash
-npm run test-rules -- ./test-data/signins.json
+npm run test-rules -- ./test-data/audit-events.json
+npm run test-rules -- ./test-data/directory-audits.json
+npm run test-rules -- ./test-data/sign-ins.json
 ```
 
 For tenant-scoped rules, pass the tenant ID:
 
 ```bash
-npm run test-rules -- ./test-data/signins.json --tenant 00000000-0000-0000-0000-000000000000
+npm run test-rules -- ./test-data/audit-events.json --tenant 00000000-0000-0000-0000-000000000000
 ```
 
 The tool will:

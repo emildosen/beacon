@@ -6,7 +6,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { evaluateRules } from '../lib/rules.js';
+import { evaluateRules, interpolateTemplateValue } from '../lib/rules.js';
 import { getRules } from '../lib/config.js';
 import { RuleSource, AuditEvent, SignInLog, SecurityAlert, Rule } from '../lib/types.js';
 
@@ -120,7 +120,8 @@ async function main() {
     process.exit(1);
   }
 
-  // Load rules
+  // Load rules from filesystem (no Azure Storage needed)
+  process.env.ruleSource = 'filesystem';
   console.log(`${colors.cyan}Loading rules...${colors.reset}`);
   const rules = await getRules();
   const enabledRules = rules.filter((r) => r.enabled);
@@ -178,15 +179,9 @@ async function main() {
       const severityColor = severityColors[matchedRule.severity] || colors.reset;
       console.log(`${colors.green}${eventLabel}${colors.reset}`);
       console.log(`  ${colors.green}✓ MATCH:${colors.reset} "${matchedRule.name}" ${severityColor}(${matchedRule.severity})${colors.reset}`);
-
-      // Show matched conditions
-      const conditionStr = matchedRule.conditions.rules
-        .map(c => `${c.field} ${c.operator} ${c.value || ''}`.trim())
-        .join(matchedRule.conditions.match === 'all' ? ' AND ' : ' OR ');
-      console.log(`    ${colors.dim}Conditions: ${conditionStr}${colors.reset}`);
-    } else {
-      console.log(`${colors.dim}${eventLabel}${colors.reset}`);
-      console.log(`  ${colors.dim}✗ No match${colors.reset}`);
+      const description = interpolateTemplateValue(matchedRule.description, event as unknown as Record<string, unknown>);
+      console.log(`  ${colors.cyan}Desc:${colors.reset} ${description}`);
+      console.log(`${JSON.stringify(event, null, 2)}\n`);
     }
   }
 
