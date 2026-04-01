@@ -1,6 +1,6 @@
 {
   "name": "Conditional Access policy deleted",
-  "description": "Conditional Access policy deleted",
+  "description": "Conditional Access policy '{{TargetResources.0.displayName}}' was deleted",
   "severity": "High",
   "enabled": true,
   "source": "AuditLog",
@@ -16,7 +16,7 @@
     ]
   },
   "meta": {
-    "author": "emildosen-test",
+    "author": "emildosen",
     "created": "2025-12-26"
   }
 }

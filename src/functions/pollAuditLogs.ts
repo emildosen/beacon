@@ -1,7 +1,7 @@
 import { app, InvocationContext, Timer } from '@azure/functions';
 import { getAuditEvents } from '../lib/managementApi.js';
 import { getSignIns, getSecurityAlerts, getDirectoryAudits, getRiskDetections, getOrganizationName } from '../lib/graph.js';
-import { evaluateRules, getEventId, getEventSummary } from '../lib/rules.js';
+import { evaluateRules, getEventId, getEventSummary, interpolateTemplateValue } from '../lib/rules.js';
 import { writeAlerts, writeLogs } from '../lib/logAnalytics.js';
 import { sendTeamsAlerts } from '../lib/teams.js';
 import { getClients, updateClientStatus, getRules, activateClient, incrementClientRetry, deleteClient, PLACEHOLDER_TENANT_ID } from '../lib/config.js';
@@ -289,7 +289,7 @@ function createAlert(
     TargetType: target.type,
     RuleName: rule.name,
     Severity: rule.severity,
-    Description: rule.description,
+    Description: interpolateTemplateValue(rule.description, event as unknown as Record<string, unknown>),
     SourceType: source,
     SourceEventId: getEventId(event),
     RawEventSummary: getEventSummary(event, source),

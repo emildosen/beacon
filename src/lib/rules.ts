@@ -39,7 +39,7 @@ function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
  * Template syntax: {{path.to.field}} - will be replaced with the value from the event.
  * Example: "{{TargetResources.0.UserPrincipalName}}" becomes the actual UPN from the event.
  */
-function interpolateTemplateValue(
+export function interpolateTemplateValue(
   template: string,
   event: Record<string, unknown>
 ): string {
