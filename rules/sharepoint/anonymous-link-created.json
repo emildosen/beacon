@@ -1,6 +1,6 @@
 {
   "name": "Anonymous link created",
-  "description": "Anonymous sharing link created - data exposure risk",
+  "description": "{{UserId}} created an anonymous sharing link to {{ObjectId}}",
   "severity": "Medium",
   "enabled": true,
   "source": "AuditLog",
@@ -15,7 +15,8 @@
     ]
   },
   "meta": {
-    "author": "emildosen-test",
-    "created": "2025-12-26"
+    "author": "emildosen",
+    "created": "2025-12-26",
+    "updated": "2026-03-31"
   }
 }
