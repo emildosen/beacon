@@ -1,6 +1,6 @@
 {
-  "name": "OAuth app consent granted",
-  "description": "OAuth application consent granted - check for illicit consent",
+  "name": "App consent granted",
+  "description": "Application consent granted - check for illicit consent",
   "severity": "High",
   "enabled": true,
   "source": "AuditLog",
@@ -16,7 +16,7 @@
     ]
   },
   "meta": {
-    "author": "emildosen-test",
-    "created": "2025-12-26"
+    "author": "emildosen",
+    "created": "2026-03-31"
   }
 }

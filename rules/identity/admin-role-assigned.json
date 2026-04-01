@@ -20,7 +20,7 @@
     { "field": "ModifiedProperties", "operator": "Contains", "value": "Global Administrator" }
   ],
   "meta": {
-    "author": "emildosen-test",
+    "author": "emildosen",
     "created": "2025-12-26",
     "updated": "2026-03-31",
     "notes": "Checks for 'Admin' in role name. Excludes Global Administrator (handled by dedicated Critical rule)."
