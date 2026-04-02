@@ -1,7 +1,7 @@
 {
   "name": "Inbox rule with redirect created",
-  "description": "Inbox rule redirects mail - BEC indicator",
-  "severity": "Critical",
+  "description": "{{UserId}} created a new email redirect rule",
+  "severity": "High",
   "enabled": true,
   "source": "AuditLog",
   "mitre": {
@@ -13,11 +13,12 @@
     "match": "all",
     "rules": [
       { "field": "Operation", "operator": "Equals", "value": "New-InboxRule" },
-      { "field": "Parameters.RedirectTo", "operator": "Exists", "value": "" }
+      { "field": "Parameters", "operator": "Contains", "value": "RedirectTo" }
     ]
   },
   "meta": {
-    "author": "emildosen-test",
-    "created": "2025-12-26"
+    "author": "emildosen",
+    "created": "2025-12-26",
+    "updated": "2026-04-01"
   }
 }

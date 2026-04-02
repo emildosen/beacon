@@ -1,7 +1,7 @@
 {
   "name": "Inbox rule with forwarding created",
-  "description": "Inbox rule forwards mail externally - BEC indicator",
-  "severity": "Critical",
+  "description": "{{UserId}} created a new email forwarding rule",
+  "severity": "High",
   "enabled": true,
   "source": "AuditLog",
   "mitre": {
@@ -13,11 +13,12 @@
     "match": "all",
     "rules": [
       { "field": "Operation", "operator": "Equals", "value": "New-InboxRule" },
-      { "field": "Parameters.ForwardTo", "operator": "Exists", "value": "" }
+      { "field": "Parameters", "operator": "Contains", "value": "ForwardTo" }
     ]
   },
   "meta": {
-    "author": "emildosen-test",
-    "created": "2025-12-26"
+    "author": "emildosen",
+    "created": "2025-12-26",
+    "updated": "2026-04-01"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "Inbox rule with delete action",
-  "description": "Inbox rule deletes messages - possible evidence hiding",
+  "description": "{{UserId}} created a new email rule with delete action - possible evidence hiding",
   "severity": "High",
   "enabled": true,
   "source": "AuditLog",
@@ -13,11 +13,12 @@
     "match": "all",
     "rules": [
       { "field": "Operation", "operator": "Equals", "value": "New-InboxRule" },
-      { "field": "Parameters.DeleteMessage", "operator": "Exists", "value": "" }
+      { "field": "Parameters", "operator": "Contains", "value": "DeleteMessage" }
     ]
   },
   "meta": {
-    "author": "emildosen-test",
-    "created": "2025-12-26"
+    "author": "emildosen",
+    "created": "2025-12-26",
+    "updated": "2026-04-01"
   }
 }
