@@ -8,9 +8,9 @@ try {
 } catch { /* use fallback */ }
 
 export default defineConfig({
-  title: "Beacon",
+  title: "Beacon - M365 Security Alerting",
   titleTemplate: ':title | Beacon - M365 Security Alerting',
-  description: "Multi-tenant M365 security alerting for MSPs",
+  description: "Open source multi-tenant M365 security alerting",
   head: [
     ['link', { rel: 'icon', href: '/favicon.png' }]
   ],
