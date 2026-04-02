@@ -1,0 +1,185 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "## Admin Consent URL\n\nUse the link below to onboard a new client tenant. The admin of the client tenant must open this link and grant consent for Beacon to read their security data.\n\n**[Grant Admin Consent]({{CONSENT_URL}})**\n\n`{{CONSENT_URL}}`"
+      },
+      "name": "text-consent-url"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "isRequired": true,
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 2592000000
+                }
+              ]
+            },
+            "value": {
+              "durationMs": 604800000
+            },
+            "label": "Time Range"
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Beacon_Log_CL\n| where LogType == 'sync'\n| summarize arg_max(TimeGenerated, Status, Message, AuditEvents, SignIns, SecurityAlerts, RiskDetections, AlertsGenerated, DurationMs) by ClientTenantName, ClientTenantId\n| project ClientTenantName, ClientTenantId, LastSync = TimeGenerated, Status, Message, AuditEvents, SignIns, SecurityAlerts, RiskDetections, AlertsGenerated, DurationMs\n| order by LastSync desc",
+        "size": 3,
+        "title": "Synced Tenants",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "LastSync",
+              "formatter": 6,
+              "formatOptions": {
+                "customColumnWidthSetting": "180px"
+              }
+            },
+            {
+              "columnMatch": "Status",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "success",
+                    "representation": "green",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "error",
+                    "representation": "redBright",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "pending",
+                    "representation": "yellow",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "Default",
+                    "representation": "gray",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "DurationMs",
+              "formatter": 0,
+              "numberFormat": {
+                "unit": 23,
+                "options": {
+                  "style": "decimal",
+                  "maximumFractionDigits": 0
+                }
+              }
+            }
+          ],
+          "sortBy": [
+            {
+              "itemKey": "LastSync",
+              "sortOrder": 2
+            }
+          ]
+        }
+      },
+      "name": "table-synced-tenants"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Beacon_Log_CL\n| where LogType == 'system'\n| where TimeGenerated {TimeRange}\n| project TimeGenerated, Status, Message, ClientTenantName, ClientTenantId\n| order by TimeGenerated desc\n| take 100",
+        "size": 3,
+        "title": "System Events",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "TimeGenerated",
+              "formatter": 6,
+              "formatOptions": {
+                "customColumnWidthSetting": "180px"
+              }
+            },
+            {
+              "columnMatch": "Status",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "success",
+                    "representation": "green",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "error",
+                    "representation": "redBright",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "Default",
+                    "representation": "gray",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "Message",
+              "formatter": 0,
+              "formatOptions": {
+                "customColumnWidthSetting": "400px"
+              }
+            }
+          ],
+          "sortBy": [
+            {
+              "itemKey": "TimeGenerated",
+              "sortOrder": 2
+            }
+          ]
+        }
+      },
+      "name": "table-system-events"
+    }
+  ],
+  "fallbackResourceIds": []
+}

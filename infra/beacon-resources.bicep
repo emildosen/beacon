@@ -463,6 +463,19 @@ resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = {
   }
 }
 
+// Workbook: Beacon System Dashboard
+resource systemWorkbook 'Microsoft.Insights/workbooks@2023-06-01' = {
+  name: guid(resourceGroup().id, 'beacon-system-workbook')
+  location: location
+  kind: 'shared'
+  properties: {
+    displayName: 'Beacon System'
+    category: 'workbook'
+    sourceId: logAnalyticsWorkspace.id
+    serializedData: replace(loadTextContent('workbooks/beacon-system.json'), '{{CONSENT_URL}}', '${environment().authentication.loginEndpoint}common/adminconsent?client_id=${appRegistration.appId}&redirect_uri=https://${functionApp.properties.defaultHostName}/api/m365Callback&state=${consentSecret}')
+  }
+}
+
 // Role assignment: Monitoring Metrics Publisher for Function App to write to DCR
 resource dcrRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(dataCollectionRule.id, functionApp.id, '3913510d-42f4-4e42-8a64-420c390055eb')
