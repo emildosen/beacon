@@ -196,13 +196,13 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let selectedClients = dynamic([{ClientTenant}]);\nBeacon_Alerts_CL\n| where TimeGenerated {TimeRange}\n| where '*' in (selectedClients) or ClientTenantName in (selectedClients)\n| summarize AlertCount = count() by bin(TimeGenerated, 1h)\n| order by TimeGenerated asc",
+              "query": "let selectedClients = dynamic([{ClientTenant}]);\nlet duration = {TimeRange:seconds};\nlet stepSize = case(duration <= 86400, 1h, duration <= 604800, 6h, 24h);\nlet start = bin(ago(duration * 1s), stepSize);\nlet end = bin(now(), stepSize);\nlet alerts = Beacon_Alerts_CL\n| where TimeGenerated between (start .. end)\n| where '*' in (selectedClients) or ClientTenantName in (selectedClients)\n| summarize AlertCount = count() by bin(TimeGenerated, stepSize);\nrange ts from start to end step stepSize\n| extend TimeGenerated = bin(todatetime(ts), stepSize)\n| join kind=leftouter alerts on TimeGenerated\n| extend AlertCount = coalesce(AlertCount, 0)\n| project TimeGenerated, AlertCount\n| order by TimeGenerated asc",
               "size": 1,
               "title": "Alerts Over Time",
               "color": "grayBlue",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
-              "visualization": "areachart",
+              "visualization": "barchart",
               "chartSettings": {
                 "xAxis": "TimeGenerated",
                 "yAxis": [
@@ -217,14 +217,14 @@
                 ]
               }
             },
-            "customWidth": "50",
+            "customWidth": "65",
             "name": "chart-alerts-over-time"
           },
           {
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let selectedClients = dynamic([{ClientTenant}]);\nBeacon_Alerts_CL\n| where TimeGenerated {TimeRange}\n| where '*' in (selectedClients) or ClientTenantName in (selectedClients)\n| summarize Count = count() by Severity\n| order by Count desc",
+              "query": "let selectedClients = dynamic([{ClientTenant}]);\nlet severities = datatable(Severity: string, SortOrder: int) ['Critical', 0, 'High', 1, 'Medium', 2, 'Low', 3];\nlet alerts = Beacon_Alerts_CL\n| where TimeGenerated {TimeRange}\n| where '*' in (selectedClients) or ClientTenantName in (selectedClients)\n| summarize Count = count() by Severity;\nseverities\n| join kind=leftouter alerts on Severity\n| extend Count = coalesce(Count, 0)\n| order by SortOrder asc\n| project Severity, Count",
               "size": 1,
               "title": "Severity Breakdown",
               "queryType": 0,
@@ -239,36 +239,40 @@
                   "columnMatch": "Count",
                   "formatter": 12,
                   "formatOptions": {
-                    "palette": "grayBlue"
+                    "palette": "none"
                   }
                 },
-                "showBorder": false,
-                "sortCriteriaField": "Count",
-                "sortOrderField": 2,
-                "size": "auto"
+                "showBorder": true,
+                "size": "auto",
+                "styleSettings": {
+                  "backgroundColor": "colorGray300"
+                }
               },
               "chartSettings": {
+                "group": "Severity",
+                "createOtherGroup": 0,
+                "showMetrics": true,
                 "seriesLabelSettings": [
                   {
                     "seriesName": "Critical",
-                    "color": "redBright"
+                    "color": "redDark"
                   },
                   {
                     "seriesName": "High",
-                    "color": "orange"
+                    "color": "orangeDark"
                   },
                   {
                     "seriesName": "Medium",
-                    "color": "yellow"
+                    "color": "yellowDark"
                   },
                   {
                     "seriesName": "Low",
-                    "color": "blue"
+                    "color": "blueDark"
                   }
                 ]
               }
             },
-            "customWidth": "50",
+            "customWidth": "35",
             "name": "chart-severity-breakdown"
           }
         ]

@@ -4,51 +4,15 @@
     {
       "type": 1,
       "content": {
-        "json": "## Admin Consent URL\n\nUse the link below to onboard a new client tenant. The admin of the client tenant must open this link and grant consent for Beacon to read their security data.\n\n**[Grant Admin Consent]({{CONSENT_URL}})**\n\n`{{CONSENT_URL}}`"
+        "json": "#### Admin Consent URL\n\nUse the link below to onboard a new client tenant. The admin of the client tenant must open this link and grant consent for Beacon.\n\n`{{CONSENT_URL}}`"
       },
       "name": "text-consent-url"
-    },
-    {
-      "type": 9,
-      "content": {
-        "version": "KqlParameterItem/1.0",
-        "parameters": [
-          {
-            "id": "c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f",
-            "version": "KqlParameterItem/1.0",
-            "name": "TimeRange",
-            "type": 4,
-            "isRequired": true,
-            "typeSettings": {
-              "selectableValues": [
-                {
-                  "durationMs": 86400000
-                },
-                {
-                  "durationMs": 604800000
-                },
-                {
-                  "durationMs": 2592000000
-                }
-              ]
-            },
-            "value": {
-              "durationMs": 604800000
-            },
-            "label": "Time Range"
-          }
-        ],
-        "style": "pills",
-        "queryType": 0,
-        "resourceType": "microsoft.operationalinsights/workspaces"
-      },
-      "name": "parameters"
     },
     {
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "Beacon_Log_CL\n| where LogType == 'sync'\n| summarize arg_max(TimeGenerated, Status, Message, AuditEvents, SignIns, SecurityAlerts, RiskDetections, AlertsGenerated, DurationMs) by ClientTenantName, ClientTenantId\n| project ClientTenantName, ClientTenantId, LastSync = TimeGenerated, Status, Message, AuditEvents, SignIns, SecurityAlerts, RiskDetections, AlertsGenerated, DurationMs\n| order by LastSync desc",
+        "query": "Beacon_Log_CL\n| where LogType == 'sync'\n| summarize arg_max(TimeGenerated, Status, Message, DurationMs) by ClientTenantName, ClientTenantId\n| project TenantName = ClientTenantName, TenantId = ClientTenantId, LastSync = TimeGenerated, Status, Message, Duration = DurationMs\n| order by LastSync desc",
         "size": 3,
         "title": "Synced Tenants",
         "queryType": 0,
@@ -96,7 +60,7 @@
               }
             },
             {
-              "columnMatch": "DurationMs",
+              "columnMatch": "Duration",
               "formatter": 0,
               "numberFormat": {
                 "unit": 23,
@@ -121,7 +85,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "Beacon_Log_CL\n| where LogType == 'system'\n| where TimeGenerated {TimeRange}\n| project TimeGenerated, Status, Message, ClientTenantName, ClientTenantId\n| order by TimeGenerated desc\n| take 100",
+        "query": "Beacon_Log_CL\n| where LogType == 'system'\n| project TimeGenerated, Status, Message, ClientTenantName, ClientTenantId\n| order by TimeGenerated desc\n| take 100",
         "size": 3,
         "title": "System Events",
         "queryType": 0,
