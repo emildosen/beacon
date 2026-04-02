@@ -1,5 +1,6 @@
 ---
 layout: home
+title: Beacon - M365 Security Alerting
 titleTemplate: false
 
 hero:
