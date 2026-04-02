@@ -1,6 +1,6 @@
 {
   "name": "Send-as permission added",
-  "description": "Send-as permission granted - can impersonate sender",
+  "description": "{{UserId}} added send-as permission - can impersonate sender",
   "severity": "High",
   "enabled": true,
   "source": "AuditLog",
@@ -13,13 +13,12 @@
     "match": "all",
     "rules": [
       { "field": "Operation", "operator": "Equals", "value": "Add-RecipientPermission" },
-      { "field": "Parameters.AccessRights", "operator": "Contains", "value": "SendAs" }
+      { "field": "Parameters", "operator": "Contains", "value": "SendAs" }
     ]
   },
   "meta": {
-    "author": "emildosen-test",
+    "author": "emildosen",
     "created": "2025-12-26",
-    "updated": "2025-12-26",
-    "notes": "Filters for SendAs permission specifically"
+    "updated": "2026-04-01"
   }
 }
