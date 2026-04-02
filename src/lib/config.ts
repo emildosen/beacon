@@ -15,12 +15,12 @@ const rulesDir = join(projectRoot, 'rules');
 // Table and container names
 const CLIENTS_TABLE = 'Clients';
 const ALERTS_TABLE = 'AlertsConfig';
-const CONFIG_CONTAINER = 'config';
+const RULES_CONTAINER = 'rules';
 
 // Lazy-initialized clients
 let clientsTableClient: TableClient | null = null;
 let alertsTableClient: TableClient | null = null;
-let configContainerClient: ContainerClient | null = null;
+let rulesContainerClient: ContainerClient | null = null;
 let rulesSynced = false;
 
 type Logger = {
@@ -150,7 +150,7 @@ async function seedPlaceholderDataIfEmpty(): Promise<void> {
  * Initialize blob container client
  */
 async function ensureContainerExists(): Promise<ContainerClient> {
-  if (configContainerClient) return configContainerClient;
+  if (rulesContainerClient) return rulesContainerClient;
 
   let blobService: BlobServiceClient;
 
@@ -164,12 +164,12 @@ async function ensureContainerExists(): Promise<ContainerClient> {
     );
   }
 
-  configContainerClient = blobService.getContainerClient(CONFIG_CONTAINER);
+  rulesContainerClient = blobService.getContainerClient(RULES_CONTAINER);
 
   // Create container if it doesn't exist
-  await configContainerClient.createIfNotExists();
+  await rulesContainerClient.createIfNotExists();
 
-  return configContainerClient;
+  return rulesContainerClient;
 }
 
 /**
@@ -224,7 +224,7 @@ async function syncBundledRulesToBlob(logger?: Logger): Promise<void> {
   for (const filePath of jsonFiles) {
     try {
       const relativePath = relative(rulesDir, filePath);
-      const blobName = `rules/${relativePath.replace(/\\/g, '/')}`;
+      const blobName = relativePath.replace(/\\/g, '/');
       const blobClient = container.getBlockBlobClient(blobName);
 
       // Check if blob already exists
@@ -282,8 +282,7 @@ async function loadRulesFromBlob(logger?: Logger): Promise<Rule[]> {
   const container = await ensureContainerExists();
   const rules: Rule[] = [];
 
-  // List all blobs with prefix 'rules/'
-  for await (const blob of container.listBlobsFlat({ prefix: 'rules/' })) {
+  for await (const blob of container.listBlobsFlat()) {
     if (!blob.name.endsWith('.json')) continue;
 
     try {
@@ -297,8 +296,8 @@ async function loadRulesFromBlob(logger?: Logger): Promise<Rule[]> {
         continue;
       }
 
-      // Derive ID from blob name (strip 'rules/' prefix and '.json' suffix)
-      const id = blob.name.replace(/^rules\//, '').replace(/\.json$/, '');
+      // Derive ID from blob name (strip '.json' suffix)
+      const id = blob.name.replace(/\.json$/, '');
 
       rules.push({ ...parsed, id });
     } catch (error) {

@@ -118,10 +118,10 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01'
   name: 'default'
 }
 
-// Config container for rules storage
-resource configContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+// Rules container for rules storage
+resource rulesContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   parent: blobService
-  name: 'config'
+  name: 'rules'
   properties: {
     publicAccess: 'None'
   }
