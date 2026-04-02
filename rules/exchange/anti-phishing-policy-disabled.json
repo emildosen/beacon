@@ -1,6 +1,6 @@
 {
-  "name": "Anti-phishing policy changed",
-  "description": "{{UserId}} modified an anti-phishing policy",
+  "name": "Anti-phishing policy disabled",
+  "description": "{{UserId}} disabled an anti-phishing policy",
   "severity": "High",
   "enabled": true,
   "source": "AuditLog",
@@ -12,12 +12,11 @@
   "conditions": {
     "match": "all",
     "rules": [
-      { "field": "Operation", "operator": "Equals", "value": "Set-AntiPhishPolicy" }
+      { "field": "Operation", "operator": "Equals", "value": "Disable-AntiPhishRule" }
     ]
   },
   "meta": {
     "author": "emildosen",
-    "created": "2025-12-26",
-    "updated": "2026-04-01"
+    "created": "2026-04-01"
   }
 }
