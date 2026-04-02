@@ -44,6 +44,12 @@ export default defineConfig({
         ]
       },
       {
+        text: 'Monitoring',
+        items: [
+          { text: 'Workbooks', link: '/workbooks' }
+        ]
+      },
+      {
         text: 'Development',
         items: [
           { text: 'Debugging Rules', link: '/debugging-rules' }
