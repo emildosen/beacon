@@ -14,12 +14,20 @@
             "isRequired": true,
             "typeSettings": {
               "selectableValues": [
-                { "durationMs": 86400000 },
-                { "durationMs": 604800000 },
-                { "durationMs": 2592000000 }
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 2592000000
+                }
               ]
             },
-            "value": { "durationMs": 604800000 },
+            "value": {
+              "durationMs": 604800000
+            },
             "label": "Time Range"
           },
           {
@@ -35,10 +43,14 @@
             "queryType": 0,
             "resourceType": "microsoft.operationalinsights/workspaces",
             "typeSettings": {
-              "additionalResourceOptions": ["value::all"],
+              "additionalResourceOptions": [
+                "value::all"
+              ],
               "selectAllValue": "*"
             },
-            "value": ["value::all"],
+            "value": [
+              "value::all"
+            ],
             "label": "Client Tenant"
           }
         ],
@@ -59,17 +71,28 @@
             "content": {
               "version": "KqlItem/1.0",
               "query": "let selectedClients = dynamic([{ClientTenant}]);\nBeacon_Alerts_CL\n| where TimeGenerated {TimeRange}\n| where '*' in (selectedClients) or ClientTenantName in (selectedClients)\n| count",
-              "size": 4,
+              "size": 3,
               "title": "Total Alerts",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
               "visualization": "tiles",
               "tileSettings": {
-                "titleContent": { "columnMatch": "Count", "formatter": 12, "formatOptions": { "palette": "auto" } },
-                "showBorder": true
+                "titleContent": {
+                  "columnMatch": "Count",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "categorical"
+                  }
+                },
+                "showBorder": true,
+                "size": "full",
+                "styleSettings": {
+                  "backgroundColor": "colorGray300"
+                }
               }
             },
             "customWidth": "25",
+            "customHeight": "120",
             "name": "tile-total-alerts"
           },
           {
@@ -77,17 +100,28 @@
             "content": {
               "version": "KqlItem/1.0",
               "query": "let selectedClients = dynamic([{ClientTenant}]);\nBeacon_Alerts_CL\n| where TimeGenerated {TimeRange}\n| where '*' in (selectedClients) or ClientTenantName in (selectedClients)\n| where Severity == 'Critical'\n| count",
-              "size": 4,
+              "size": 3,
               "title": "Critical Alerts",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
               "visualization": "tiles",
               "tileSettings": {
-                "titleContent": { "columnMatch": "Count", "formatter": 12, "formatOptions": { "palette": "redBright" } },
-                "showBorder": true
+                "titleContent": {
+                  "columnMatch": "Count",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "categorical"
+                  }
+                },
+                "showBorder": true,
+                "size": "full",
+                "styleSettings": {
+                  "backgroundColor": "colorGray300"
+                }
               }
             },
             "customWidth": "25",
+            "customHeight": "120",
             "name": "tile-critical-alerts"
           },
           {
@@ -95,17 +129,28 @@
             "content": {
               "version": "KqlItem/1.0",
               "query": "let selectedClients = dynamic([{ClientTenant}]);\nBeacon_Alerts_CL\n| where TimeGenerated {TimeRange}\n| where '*' in (selectedClients) or ClientTenantName in (selectedClients)\n| summarize count() by ClientTenantName\n| count",
-              "size": 4,
+              "size": 3,
               "title": "Clients Affected",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
               "visualization": "tiles",
               "tileSettings": {
-                "titleContent": { "columnMatch": "Count", "formatter": 12, "formatOptions": { "palette": "blue" } },
-                "showBorder": true
+                "titleContent": {
+                  "columnMatch": "Count",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "categorical"
+                  }
+                },
+                "showBorder": true,
+                "size": "full",
+                "styleSettings": {
+                  "backgroundColor": "colorGray300"
+                }
               }
             },
             "customWidth": "25",
+            "customHeight": "120",
             "name": "tile-clients-affected"
           },
           {
@@ -113,17 +158,28 @@
             "content": {
               "version": "KqlItem/1.0",
               "query": "let selectedClients = dynamic([{ClientTenant}]);\nBeacon_Alerts_CL\n| where TimeGenerated {TimeRange}\n| where '*' in (selectedClients) or ClientTenantName in (selectedClients)\n| where isnotempty(Target)\n| summarize count() by Target\n| count",
-              "size": 4,
+              "size": 3,
               "title": "Unique Targets",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
               "visualization": "tiles",
               "tileSettings": {
-                "titleContent": { "columnMatch": "Count", "formatter": 12, "formatOptions": { "palette": "purple" } },
-                "showBorder": true
+                "titleContent": {
+                  "columnMatch": "Count",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "categorical"
+                  }
+                },
+                "showBorder": true,
+                "size": "full",
+                "styleSettings": {
+                  "backgroundColor": "colorGray300"
+                }
               }
             },
             "customWidth": "25",
+            "customHeight": "120",
             "name": "tile-unique-targets"
           }
         ]
@@ -143,13 +199,22 @@
               "query": "let selectedClients = dynamic([{ClientTenant}]);\nBeacon_Alerts_CL\n| where TimeGenerated {TimeRange}\n| where '*' in (selectedClients) or ClientTenantName in (selectedClients)\n| summarize AlertCount = count() by bin(TimeGenerated, 1h)\n| order by TimeGenerated asc",
               "size": 1,
               "title": "Alerts Over Time",
+              "color": "grayBlue",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
               "visualization": "areachart",
               "chartSettings": {
                 "xAxis": "TimeGenerated",
-                "yAxis": ["AlertCount"],
-                "seriesLabelSettings": [{ "seriesName": "AlertCount", "label": "Alerts", "color": "blue" }]
+                "yAxis": [
+                  "AlertCount"
+                ],
+                "showMetrics": false,
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "AlertCount",
+                    "label": "Alerts"
+                  }
+                ]
               }
             },
             "customWidth": "50",
@@ -164,13 +229,42 @@
               "title": "Severity Breakdown",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
-              "visualization": "piechart",
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "Severity",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "Count",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "grayBlue"
+                  }
+                },
+                "showBorder": false,
+                "sortCriteriaField": "Count",
+                "sortOrderField": 2,
+                "size": "auto"
+              },
               "chartSettings": {
                 "seriesLabelSettings": [
-                  { "seriesName": "Critical", "color": "redBright" },
-                  { "seriesName": "High", "color": "orange" },
-                  { "seriesName": "Medium", "color": "yellow" },
-                  { "seriesName": "Low", "color": "blue" }
+                  {
+                    "seriesName": "Critical",
+                    "color": "redBright"
+                  },
+                  {
+                    "seriesName": "High",
+                    "color": "orange"
+                  },
+                  {
+                    "seriesName": "Medium",
+                    "color": "yellow"
+                  },
+                  {
+                    "seriesName": "Low",
+                    "color": "blue"
+                  }
                 ]
               }
             },
@@ -188,42 +282,63 @@
         "groupType": "editable",
         "items": [
           {
-            "type": 3,
+            "type": 12,
             "content": {
-              "version": "KqlItem/1.0",
-              "query": "let selectedClients = dynamic([{ClientTenant}]);\nBeacon_Alerts_CL\n| where TimeGenerated {TimeRange}\n| where '*' in (selectedClients) or ClientTenantName in (selectedClients)\n| summarize AlertCount = count() by ClientTenantName\n| top 10 by AlertCount desc",
-              "size": 0,
-              "title": "Top 10 Clients by Alert Volume",
-              "queryType": 0,
-              "resourceType": "microsoft.operationalinsights/workspaces",
-              "visualization": "barchart",
-              "chartSettings": {
-                "xAxis": "ClientTenantName",
-                "yAxis": ["AlertCount"],
-                "seriesLabelSettings": [{ "seriesName": "AlertCount", "label": "Alerts", "color": "turquoise" }]
-              }
+              "version": "NotebookGroup/1.0",
+              "groupType": "editable",
+              "items": [
+                {
+                  "type": 3,
+                  "content": {
+                    "version": "KqlItem/1.0",
+                    "query": "let selectedClients = dynamic([{ClientTenant}]);\nBeacon_Alerts_CL\n| where TimeGenerated {TimeRange}\n| where '*' in (selectedClients) or ClientTenantName in (selectedClients)\n| summarize AlertCount = count() by ClientTenantName\n| top 8 by AlertCount desc",
+                    "size": 3,
+                    "title": "Top 8 Clients by Alert Volume",
+                    "color": "grayBlue",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "visualization": "tiles",
+                    "tileSettings": {
+                      "showBorder": false,
+                      "titleContent": {
+                        "columnMatch": "ClientTenantName",
+                        "formatter": 1
+                      },
+                      "leftContent": {
+                        "columnMatch": "AlertCount",
+                        "formatter": 12,
+                        "formatOptions": {
+                          "palette": "auto"
+                        },
+                        "numberFormat": {
+                          "unit": 17,
+                          "options": {
+                            "maximumSignificantDigits": 3,
+                            "maximumFractionDigits": 2
+                          }
+                        }
+                      }
+                    },
+                    "chartSettings": {
+                      "xAxis": "ClientTenantName",
+                      "yAxis": [
+                        "AlertCount"
+                      ],
+                      "showMetrics": false,
+                      "seriesLabelSettings": [
+                        {
+                          "seriesName": "AlertCount",
+                          "label": "Alerts",
+                          "color": "turquoise"
+                        }
+                      ]
+                    }
+                  },
+                  "name": "chart-top-clients"
+                }
+              ]
             },
-            "customWidth": "50",
-            "name": "chart-top-clients"
-          },
-          {
-            "type": 3,
-            "content": {
-              "version": "KqlItem/1.0",
-              "query": "let selectedClients = dynamic([{ClientTenant}]);\nBeacon_Alerts_CL\n| where TimeGenerated {TimeRange}\n| where '*' in (selectedClients) or ClientTenantName in (selectedClients)\n| summarize AlertCount = count() by RuleName\n| top 10 by AlertCount desc",
-              "size": 0,
-              "title": "Top 10 Rules Triggered",
-              "queryType": 0,
-              "resourceType": "microsoft.operationalinsights/workspaces",
-              "visualization": "barchart",
-              "chartSettings": {
-                "xAxis": "RuleName",
-                "yAxis": ["AlertCount"],
-                "seriesLabelSettings": [{ "seriesName": "AlertCount", "label": "Alerts", "color": "green" }]
-              }
-            },
-            "customWidth": "50",
-            "name": "chart-top-rules"
+            "name": "group-charts-row2"
           }
         ]
       },
@@ -239,8 +354,8 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let selectedClients = dynamic([{ClientTenant}]);\nBeacon_Alerts_CL\n| where TimeGenerated {TimeRange}\n| where '*' in (selectedClients) or ClientTenantName in (selectedClients)\n| project TimeGenerated, ClientTenantName, Actor, Target, RuleName, Severity, SourceType, RawEventSummary\n| order by TimeGenerated desc\n| take 100",
-              "size": 0,
+              "query": "let selectedClients = dynamic([{ClientTenant}]);\nBeacon_Alerts_CL\n| where TimeGenerated {TimeRange}\n| where '*' in (selectedClients) or ClientTenantName in (selectedClients)\n| project TimeGenerated, ClientTenantName, RuleName, Actor, Target, Severity, SourceType, RawEventSummary\n| order by TimeGenerated desc\n| take 100",
+              "size": 3,
               "title": "Recent Alerts",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
@@ -250,7 +365,9 @@
                   {
                     "columnMatch": "TimeGenerated",
                     "formatter": 6,
-                    "formatOptions": { "customColumnWidthSetting": "180px" }
+                    "formatOptions": {
+                      "customColumnWidthSetting": "180px"
+                    }
                   },
                   {
                     "columnMatch": "Severity",
@@ -258,21 +375,52 @@
                     "formatOptions": {
                       "thresholdsOptions": "colors",
                       "thresholdsGrid": [
-                        { "operator": "==", "thresholdValue": "Critical", "representation": "redBright", "text": "{0}{1}" },
-                        { "operator": "==", "thresholdValue": "High", "representation": "orange", "text": "{0}{1}" },
-                        { "operator": "==", "thresholdValue": "Medium", "representation": "yellow", "text": "{0}{1}" },
-                        { "operator": "==", "thresholdValue": "Low", "representation": "blue", "text": "{0}{1}" },
-                        { "operator": "Default", "representation": "gray", "text": "{0}{1}" }
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Critical",
+                          "representation": "redBright",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "High",
+                          "representation": "orange",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Medium",
+                          "representation": "yellow",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Low",
+                          "representation": "blue",
+                          "text": "{0}{1}"
+                        },
+                        {
+                          "operator": "Default",
+                          "representation": "gray",
+                          "text": "{0}{1}"
+                        }
                       ]
                     }
                   },
                   {
                     "columnMatch": "RawEventSummary",
                     "formatter": 0,
-                    "formatOptions": { "customColumnWidthSetting": "400px" }
+                    "formatOptions": {
+                      "customColumnWidthSetting": "400px"
+                    }
                   }
                 ],
-                "sortBy": [{ "itemKey": "TimeGenerated", "sortOrder": 2 }]
+                "sortBy": [
+                  {
+                    "itemKey": "TimeGenerated",
+                    "sortOrder": 2
+                  }
+                ]
               }
             },
             "name": "table-recent-alerts"
